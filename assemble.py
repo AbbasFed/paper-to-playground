@@ -31,32 +31,32 @@ def build_html(parts, case):
     cite = " · ".join(esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
     title = c["title"] or c["paper"] or "Interactive explainer"
 
-    header = '<div class="badges"><span class="tag paper">From the paper</span></div>\n<h1>%s</h1>\n<p class="cite">%s</p>' % (
-        inline_html(title), cite or "Source paper")
+    chips = "".join('<span class="chip">%s</span>' % esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
+    header = '<div class="chips"><span class="chip solid">From the paper</span>%s</div>\n<h1>%s</h1>' % (chips, inline_html(title))
     if case.get("audience"):
-        header += '\n<p class="muted small">Written for: %s</p>' % esc(case["audience"])
+        header += '\n<p>Written for: %s</p>' % esc(case["audience"])
 
-    idea = _p(c["intro"])
+    idea = _p(c["intro"], "lead")
     if c["why"]:
-        idea += "<p><b>Why it matters.</b> %s</p>" % inline_html(c["why"])
+        idea += '<p class="why"><b>Why it matters.</b> %s</p>' % inline_html(c["why"])
     if c["formula"]:
         idea += ('<div class="from-paper"><span class="tag paper">From the paper%s</span><div class="formula">%s</div></div>'
                  % (" · " + esc(c["equation"] or c["section"]) if (c["equation"] or c["section"]) else "", formula))
 
     symbols = "<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody>%s</tbody></table>" % "".join(
-        '<tr><td class="sym">%s</td><td>%s</td></tr>' % (inline_html(s["symbol"]), inline_html(s["meaning"])) for s in c["symbols"])
+        '<tr><td class="sym"><span>%s</span></td><td>%s</td></tr>' % (inline_html(s["symbol"]), inline_html(s["meaning"])) for s in c["symbols"])
     steps = '<ol class="steps">%s</ol>' % "".join("<li>%s</li>" % inline_html(s) for s in c["steps"])
 
     cards = []
     for i, e in enumerate(c["explorations"]):
-        btn = ('<p style="margin-top:10px"><button type="button" class="try" data-set="%s">Try it in the playground</button></p>'
+        btn = ('<p style="margin:0"><button type="button" class="try" data-set="%s">Try it in the playground &#9654;</button></p>'
                % esc(json.dumps(e["set"]), quote=True)) if e.get("set") else ""
-        cards.append('<div class="card"><h3>Exploration %d%s</h3><dl><dt>Change</dt><dd>%s</dd><dt>Observe</dt><dd>%s</dd><dt>Why</dt><dd>%s</dd></dl>%s</div>' % (
-            i + 1, ": " + inline_html(e["title"]) if e.get("title") else "", inline_html(e["change"]), inline_html(e["observe"]), inline_html(e["why"]), btn))
+        cards.append('<div class="card"><h3><small>Exploration %d</small>%s</h3><dl><dt>Change</dt><dd>%s</dd><dt>Observe</dt><dd>%s</dd><dt>Why</dt><dd>%s</dd></dl>%s</div>' % (
+            i + 1, inline_html(e["title"]) if e.get("title") else "Try this", inline_html(e["change"]), inline_html(e["observe"]), inline_html(e["why"]), btn))
     explorations = '<div class="cards">%s</div>' % "".join(cards)
 
     quotes = "".join("<blockquote>“%s”</blockquote>" % esc(q.strip(' "“”')) for q in c["quotes"])
-    src = '<p><b>%s</b>%s</p>' % (esc(c["paper"] or "Source paper"), "".join(", " + esc(x) for x in (c["section"], c["equation"]) if x))
+    src = '<p class="lead"><b>%s</b>%s</p>' % (esc(c["paper"] or "Source paper"), "".join(", " + esc(x) for x in (c["section"], c["equation"]) if x))
     if case.get("source_url"):
         src += '<p class="muted small mono">%s</p>' % esc(case["source_url"])
     grounding = src

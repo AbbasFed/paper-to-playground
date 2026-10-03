@@ -4,6 +4,8 @@
 /runs/
 .venv/
 venv/
+testenv/
+*env/
 __pycache__/
 *.pyc
 debug_*.txt

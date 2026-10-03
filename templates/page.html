@@ -9,46 +9,49 @@
 </style>
 </head>
 <body>
+<nav class="top" aria-label="Sections"><div>
+  <a href="#idea">The idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explorations</a><a href="#limitation">Keep in mind</a><a href="#grounding">Source</a>
+</div></nav>
 <main>
-<header class="top">
+<header class="hero">
 {{HEADER}}
 </header>
 
 <section id="idea">
-<h2>The idea</h2>
+<h2><span class="no">1</span>The idea</h2>
 {{IDEA}}
 </section>
 
 <section id="symbols">
-<h2>Symbols</h2>
+<h2><span class="no">2</span>Symbols</h2>
 {{SYMBOLS}}
 </section>
 
 <section id="how">
-<h2>How it works</h2>
+<h2><span class="no">3</span>How it works</h2>
 {{STEPS}}
 </section>
 
 <section id="playground">
-<div class="badges"><span class="tag ours">Our example</span></div>
-<h2>Interactive playground</h2>
+<h2><span class="no">4</span>Interactive playground <span class="tag ours">Our example</span></h2>
 <p class="muted small">Small made-up inputs chosen for clarity. Change any control: the picture, the values and the checks are recalculated immediately.</p>
 <div class="play">
-  <div class="panel">
-    <h3>Controls</h3>
+  <aside class="controls">
+    <p class="kicker">Controls</p>
     <div id="pg-controls"></div>
     <button type="button" id="pg-reset">Reset to defaults</button>
-  </div>
-  <div class="panel">
+  </aside>
+  <div class="stage">
     <div id="pg-error" class="err" hidden></div>
+    <div id="pg-tiles" class="tiles"></div>
     <div id="pg-visual"></div>
     <div class="results">
-      <div>
-        <h3>Intermediate and final values</h3>
+      <div class="box">
+        <p class="kicker">Intermediate and final values</p>
         <table id="pg-readouts"><tbody></tbody></table>
       </div>
-      <div id="pg-checks-wrap" hidden>
-        <h3>Live checks</h3>
+      <div class="box" id="pg-checks-wrap" hidden>
+        <p class="kicker">Live checks</p>
         <ul class="checks" id="pg-checks"></ul>
       </div>
     </div>
@@ -57,17 +60,17 @@
 </section>
 
 <section id="explore">
-<h2>Guided explorations</h2>
+<h2><span class="no">5</span>Guided explorations</h2>
 {{EXPLORATIONS}}
 </section>
 
 <section id="limitation" class="limit">
-<h2>Keep in mind</h2>
+<h2><span class="no">!</span>Keep in mind</h2>
 {{LIMITATION}}
 </section>
 
 <section id="grounding">
-<h2>Source grounding</h2>
+<h2><span class="no">6</span>Source grounding</h2>
 {{GROUNDING}}
 </section>
 
@@ -125,10 +128,10 @@
       var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
       ni.id = fid; row.appendChild(ni);
     } else if (c.type === 'toggle') {
-      var cb = el('input', { type: 'checkbox', id: fid });
+      var cb = el('input', { type: 'checkbox', id: fid, role: 'switch' });
       cb.checked = !!raw[c.id];
-      cb.addEventListener('change', function () { raw[c.id] = cb.checked; st.textContent = cb.checked ? 'on' : 'off'; update(); });
       var st = el('span', { 'class': 'muted small' }, cb.checked ? 'on' : 'off');
+      cb.addEventListener('change', function () { raw[c.id] = cb.checked; st.textContent = cb.checked ? 'on' : 'off'; update(); });
       row.appendChild(cb); row.appendChild(st);
     } else if (c.type === 'select') {
       var sel = el('select', { id: fid });
@@ -139,7 +142,7 @@
       var len = visibleLength(c), cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
         var cell = el('div');
-        cell.appendChild(el('span', { style: 'display:block' }, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
+        cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
         cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }));
         cells.appendChild(cell);
       })(i);
@@ -155,30 +158,44 @@
   }
   function buildAll() { controls.forEach(build); }
 
+  /* single numbers get a big tile; every readout also has a row in the table */
+  var first = null;
+  try { first = compute(PG.params(controls, raw)); } catch (e) { first = null; }
+  var tiles = [];
+  readouts.forEach(function (r, i) {
+    var v = first ? PG.get(first, r.key) : undefined;
+    if (typeof v !== 'number' || tiles.length >= 4) return;
+    var t = el('div', { 'class': 'tile' }), k = el('div', { 'class': 'k' }), val = el('div', { 'class': 'v' });
+    k.innerHTML = r.label; t.appendChild(k); t.appendChild(val); $('pg-tiles').appendChild(t);
+    tiles.push({ i: i, el: val });
+  });
   var rows = readouts.map(function (r) {
-    var tr = el('tr'), th = el('td'), td = el('td', { 'class': 'val', style: 'white-space:pre-wrap' });
+    var tr = el('tr'), th = el('td'), td = el('td', { 'class': 'val' });
     th.innerHTML = r.label; tr.appendChild(th); tr.appendChild(td);
     $('pg-readouts').tBodies[0].appendChild(tr);
     return td;
   });
+  function pills(a, r) { return '<div class="pills">' + a.map(function (x) { return '<span class="pill">' + H.esc(H.fmt(x, r.digits)) + '</span>'; }).join('') + '</div>'; }
   function show(v, r) {
-    var u = r.unit ? ' ' + r.unit : '';
-    if (Array.isArray(v) && v.length && Array.isArray(v[0])) return v.map(function (x) { return H.fmt(x, r.digits); }).join('\n') + u;
-    return H.fmt(v, r.digits) + u;
+    var u = r.unit ? '<span class="unit">' + r.unit + '</span>' : '';
+    if (Array.isArray(v) && v.length && Array.isArray(v[0])) return v.map(function (x) { return pills(x, r); }).join('') + u;
+    if (Array.isArray(v)) return pills(v, r) + u;
+    return '<span class="num">' + H.esc(H.fmt(v, r.digits)) + '</span>' + u;
   }
   function describe(params) {
     return Object.keys(params).map(function (k) { return k + ' = ' + JSON.stringify(params[k]); }).join(', ');
   }
-  var checkItems = tests.map(function (t, i) {
+  var checkItems = tests.map(function (t) {
     var li = el('li'), fixed = t.params && Object.keys(t.params).length;
     li.appendChild(el('span', { 'class': 'mark' }));
-    var nm = el('span'); nm.innerHTML = t.name; li.appendChild(nm);
-    li.appendChild(el('span', { 'class': 'when' }, fixed ? 'known case: ' + describe(t.params) : 'holds for the current settings'));
+    var nm = el('span', { 'class': 'nm' }); nm.innerHTML = t.name; li.appendChild(nm);
+    var when = el('span', { 'class': 'when' }, fixed ? 'Known case: ' + describe(t.params) : 'Holds for the current settings');
     if (fixed) {
       var b = el('button', { type: 'button' }, 'Load this case');
       b.addEventListener('click', function () { load(t.params); });
-      li.appendChild(b);
+      when.appendChild(b);
     }
+    li.appendChild(when);
     $('pg-checks').appendChild(li);
     return li;
   });
@@ -204,7 +221,11 @@
       } catch (e2) { $('pg-visual').innerHTML = ''; msg = 'Drawing error: ' + (e2 && e2.message || e2); }
     }
     $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
-    readouts.forEach(function (r, i) { rows[i].textContent = out ? show(PG.get(out, r.key), r) : '–'; });
+    readouts.forEach(function (r, i) { rows[i].innerHTML = out ? show(PG.get(out, r.key), r) : '–'; });
+    tiles.forEach(function (t) {
+      var r = readouts[t.i];
+      t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
+    });
     tests.forEach(function (t, i) {
       var ok = false;
       try {

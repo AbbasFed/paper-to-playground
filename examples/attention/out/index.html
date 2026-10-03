@@ -6,137 +6,218 @@
 <title>Scaled Dot-Product Attention</title>
 <style>
 :root {
-  --bg: #f6f7f9; --card: #ffffff; --fg: #1b1f24; --muted: #5b6470; --line: #d9dee5;
-  --accent: #d9480f; --paper: #1c5fb8; --paper-bg: #eaf2fd; --ours: #9a6700; --ours-bg: #fff6dc;
-  --good: #1a7f37; --bad: #c62828;
-  --c1: #2f6fde; --c2: #e8590c; --c3: #2b8a3e; --c4: #9c36b5; --c5: #0c8599; --c6: #c2255c;
+  --bg: #f3f4fb; --card: #ffffff; --card2: #f7f8fd; --fg: #171a2b; --muted: #5d6480; --line: #e2e5f1;
+  --primary: #4f46e5; --primary-2: #7c3aed; --soft: #eef0ff; --accent: #ea580c;
+  --paper: #1d4ed8; --paper-bg: #eaf1ff; --ours: #a16207; --ours-bg: #fff7e0;
+  --good: #15803d; --good-bg: #e7f6ec; --bad: #dc2626; --bad-bg: #fdecec;
+  --c1: #4f46e5; --c2: #ea580c; --c3: #059669; --c4: #c026d3; --c5: #0891b2; --c6: #e11d48;
+  --shadow: 0 1px 2px rgba(23, 26, 43, 0.05), 0 8px 24px rgba(23, 26, 43, 0.06);
+  color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14171b; --card: #1d2228; --fg: #e7eaee; --muted: #9aa4b1; --line: #343b45;
-    --accent: #ff922b; --paper: #74b0ff; --paper-bg: #17293f; --ours: #f2c14e; --ours-bg: #33290f;
-    --good: #57d27a; --bad: #ff7b72;
-    --c1: #6ea8fe; --c2: #ffa94d; --c3: #69db7c; --c4: #da77f2; --c5: #3bc9db; --c6: #f783ac;
+    --bg: #0c0f1d; --card: #151a2e; --card2: #1b213a; --fg: #e9ebf7; --muted: #9ba4c8; --line: #2a3154;
+    --primary: #8b93ff; --primary-2: #b18cff; --soft: #232a52; --accent: #fb923c;
+    --paper: #8ab6ff; --paper-bg: #14254a; --ours: #fbbf24; --ours-bg: #2f2609;
+    --good: #4ade80; --good-bg: #11301f; --bad: #f87171; --bad-bg: #3a1618;
+    --c1: #8b93ff; --c2: #fb923c; --c3: #34d399; --c4: #e879f9; --c5: #22d3ee; --c6: #fb7185;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.28);
+    color-scheme: dark;
   }
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 40px; }
-h1 { font-size: 1.7rem; line-height: 1.2; margin: 0 0 8px; }
-h2 { font-size: 1.15rem; margin: 0 0 10px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
-p { margin: 0 0 10px; }
-code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; }
-section { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
-header.top { padding: 6px 2px 2px; }
-.badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 6px; }
-.tag { display: inline-block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
-.tag.paper { color: var(--paper); background: var(--paper-bg); border-color: var(--paper); }
-.tag.ours { color: var(--ours); background: var(--ours-bg); border-color: var(--ours); border-style: dashed; }
-.cite { color: var(--muted); font-size: 0.92rem; }
-.from-paper { border-left: 5px solid var(--paper); background: var(--paper-bg); border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
-.from-ours { border: 1.5px dashed var(--ours); background: var(--ours-bg); border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
-.formula { font-size: 1.2rem; font-family: Cambria, "Times New Roman", serif; margin: 6px 0 2px; overflow-x: auto; }
-blockquote { margin: 6px 0; font-style: italic; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 64px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif; }
+main { max-width: 1180px; margin: 0 auto; padding: 0 20px 48px; }
+h1 { font-size: clamp(1.6rem, 3.4vw, 2.4rem); line-height: 1.15; margin: 14px 0 10px; letter-spacing: -0.02em; }
+h2 { font-size: 1.3rem; margin: 0 0 14px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+h2 .no { flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--soft); color: var(--primary); font-size: 0.95rem; display: grid; place-items: center; font-weight: 700; }
+h3 { font-size: 1rem; margin: 0 0 8px; }
+p { margin: 0 0 12px; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+code { background: var(--soft); padding: 1px 5px; border-radius: 5px; }
+sub, sup { font-size: 0.72em; line-height: 0; }
+
+/* top navigation */
+nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+nav.top div { max-width: 1180px; margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+nav.top a { flex: none; color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; padding: 12px 12px; border-bottom: 2px solid transparent; }
+nav.top a:hover { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* hero */
+header.hero { margin: 22px 0 18px; padding: 30px 32px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #4338ca 0%, #6d28d9 55%, #9333ea 100%); box-shadow: var(--shadow); }
+header.hero .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+header.hero .chip { font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); }
+header.hero .chip.solid { background: #fff; color: #4338ca; border-color: #fff; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; padding-top: 5px; }
+header.hero p { margin: 0; opacity: 0.9; font-size: 0.98rem; }
+
+section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px; margin: 18px 0; box-shadow: var(--shadow); }
+.lead { font-size: 1.1rem; line-height: 1.65; }
+.why { background: var(--soft); border-radius: 12px; padding: 12px 16px; }
+.why b { color: var(--primary); }
+
+.tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+.tag.paper { color: var(--paper); background: var(--card); border-color: var(--paper); }
+.tag.ours { color: var(--ours); background: var(--card); border-color: var(--ours); border-style: dashed; }
+.from-paper { border-left: 5px solid var(--paper); background: var(--paper-bg); border-radius: 12px; padding: 14px 18px; margin: 14px 0 4px; }
+.from-ours { border: 1.5px dashed var(--ours); background: var(--ours-bg); border-radius: 12px; padding: 14px 18px; margin: 14px 0 4px; }
+.formula { font-size: 1.45rem; line-height: 1.7; font-family: Cambria, "Cambria Math", "Times New Roman", serif; margin: 10px 0 2px; overflow-x: auto; text-align: center; }
+blockquote { margin: 10px 0 0; padding-left: 14px; border-left: 3px solid var(--paper); font-style: italic; }
+.cite { color: var(--muted); }
+
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-td.sym { white-space: nowrap; font-family: Cambria, "Times New Roman", serif; font-size: 1.1rem; width: 1%; padding-right: 22px; }
-td.val { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; word-break: break-word; }
-ol.steps { margin: 0; padding-left: 22px; }
-ol.steps li { margin: 4px 0; }
-.play { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-#pg-controls { display: flex; flex-wrap: wrap; gap: 4px 34px; align-items: flex-start; }
-.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; align-items: start; margin-top: 12px; }
-.panel h3 { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.ctl { margin: 0 0 12px; min-width: 230px; max-width: 100%; }
-.ctl > label, .ctl > .lbl { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 4px; }
-.ctl .row { display: flex; align-items: center; gap: 8px; }
-.ctl input[type=range] { flex: 1; min-width: 0; accent-color: var(--c1); }
-.ctl output { min-width: 3.2em; text-align: right; font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
-.ctl input[type=number], .ctl select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
-.ctl input[type=number] { width: 5.2em; }
-.ctl .cells { display: grid; gap: 4px; justify-content: start; }
-.ctl .cells input { width: 4.3em; padding: 3px 4px; }
-.ctl .cells span { font-size: 0.75rem; color: var(--muted); text-align: center; }
-.ctl input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--c1); }
-button { font: inherit; font-size: 0.88rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; cursor: pointer; }
-button:hover { border-color: var(--c1); }
-button.try { color: var(--card); background: var(--c1); border-color: var(--c1); font-weight: 600; }
-#pg-visual { min-height: 120px; overflow-x: auto; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+td.sym { width: 1%; white-space: nowrap; padding-right: 20px; }
+td.sym span { display: inline-block; min-width: 46px; text-align: center; font-family: Cambria, "Cambria Math", "Times New Roman", serif; font-size: 1.15rem; background: var(--soft); color: var(--primary); border-radius: 9px; padding: 3px 12px; }
+
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+ol.steps li { counter-increment: s; position: relative; padding: 4px 0 18px 50px; }
+ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 0.92rem; }
+ol.steps li::after { content: ""; position: absolute; left: 15px; top: 36px; bottom: 2px; width: 2px; background: var(--line); }
+ol.steps li:last-child { padding-bottom: 0; } ol.steps li:last-child::after { display: none; }
+
+/* playground */
+#playground { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); }
+.play { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
+.controls { position: sticky; top: 62px; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; max-height: calc(100vh - 80px); overflow-y: auto; }
+.kicker { color: var(--muted); font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 12px; }
+.ctl { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.ctl > label, .ctl > .lbl { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 8px; line-height: 1.35; }
+.ctl .row { display: flex; align-items: center; gap: 10px; }
+.ctl output { flex: none; min-width: 3.4em; text-align: center; font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary); background: var(--soft); border-radius: 8px; padding: 2px 8px; }
+.ctl input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 22px; background: transparent; cursor: pointer; }
+.ctl input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--line); }
+.ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: var(--primary); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--primary); }
+.ctl input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--line); }
+.ctl input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid var(--card); }
+.ctl input[type=number], .ctl select { font: inherit; font-size: 0.92rem; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.ctl input[type=number]:focus, .ctl select:focus, .ctl input[type=range]:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.ctl input[type=number] { width: 5.4em; }
+.ctl select { width: 100%; }
+.ctl .cells { display: grid; gap: 6px; justify-content: start; }
+.ctl .cells input { width: 3.9em; padding: 5px 4px; text-align: center; }
+.ctl .cells span { display: block; font-size: 0.7rem; color: var(--muted); text-align: center; }
+.ctl input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; width: 44px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background 0.15s; margin: 0; }
+.ctl input[type=checkbox]::before { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
+.ctl input[type=checkbox]:checked { background: var(--primary); }
+.ctl input[type=checkbox]:checked::before { transform: translateX(20px); }
+button { font: inherit; font-size: 0.86rem; font-weight: 600; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 7px 13px; cursor: pointer; }
+button:hover { border-color: var(--primary); color: var(--primary); }
+button.try { color: #fff; background: var(--primary); border-color: var(--primary); padding: 9px 16px; }
+button.try:hover { filter: brightness(1.1); color: #fff; }
+#pg-reset { width: 100%; }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.tile { background: var(--card2); border: 1px solid var(--line); border-left: 4px solid var(--primary); border-radius: 12px; padding: 10px 14px; min-width: 0; }
+.tile .k { color: var(--muted); font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
+.tile .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
+.tile .v small { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 4px; }
+
+#pg-visual { min-height: 140px; }
 .pg-svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
-.pg-svg text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
-.pg-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 12px; align-items: start; }
-.pg-cell { min-width: 0; }
+.pg-svg text { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
+.pg-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.pg-cell { min-width: 0; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; align-items: center; overflow-x: auto; }
+.pg-cell.wide { grid-column: 1 / -1; }
+.pg-cell > .pg-grid > .pg-cell { background: transparent; border: 0; padding: 0; }
+#pg-visual > .pg-svg { background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
 .pg-note { color: var(--muted); font-size: 0.88rem; margin: 6px 0; text-align: center; }
-.err { color: var(--bad); border: 1px solid var(--bad); border-radius: 8px; padding: 8px 12px; margin: 8px 0; font-size: 0.92rem; }
+.err { color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; font-size: 0.92rem; }
+
+.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; margin-top: 16px; }
+.box { background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+#pg-readouts td { padding: 8px 6px; font-size: 0.92rem; }
+#pg-readouts td:first-child { width: 46%; }
+#pg-readouts td.val { text-align: right; }
+.pills { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; margin: 2px 0; }
+.pill { font-family: ui-monospace, Consolas, monospace; font-size: 0.84rem; font-variant-numeric: tabular-nums; background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 1px 7px; }
+.num { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
+.unit { color: var(--muted); font-size: 0.82rem; margin-left: 4px; }
 .checks { list-style: none; margin: 0; padding: 0; }
-.checks li { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 0.93rem; }
-.checks .mark { font-weight: 700; width: 1.2em; }
-.checks .ok .mark { color: var(--good); } .checks .no .mark { color: var(--bad); }
-.checks .when { color: var(--muted); font-size: 0.82rem; }
-.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.card { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--bg); }
-.card dl { margin: 0; } .card dt { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--c1); margin-top: 8px; }
-.card dd { margin: 2px 0 0; }
-.limit { border-left: 5px solid var(--accent); }
+.checks li { padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 0.92rem; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; align-items: start; }
+.checks li:last-child { border-bottom: 0; }
+.checks .mark { grid-row: span 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 0.85rem; }
+.checks .ok .mark { color: var(--good); background: var(--good-bg); } .checks .no .mark { color: var(--bad); background: var(--bad-bg); }
+.checks .nm { font-weight: 600; }
+.checks .when { color: var(--muted); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; overflow-wrap: anywhere; }
+.checks button { font-size: 0.76rem; padding: 3px 9px; }
+
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { border: 1px solid var(--line); border-top: 4px solid var(--primary); border-radius: 14px; padding: 16px 18px; background: var(--card2); display: flex; flex-direction: column; }
+.card:nth-child(2) { border-top-color: var(--accent); }
+.card h3 { font-size: 1.05rem; }
+.card h3 small { display: block; color: var(--muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px; }
+.card dl { margin: 0 0 14px; flex: 1; }
+.card dt { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary); background: var(--soft); border-radius: 6px; padding: 1px 8px; margin-top: 12px; }
+.card dd { margin: 5px 0 0; }
+.limit { border-left: 6px solid var(--accent); }
+.limit h2 .no { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .muted { color: var(--muted); } .small { font-size: 0.86rem; }
-ul.plain { margin: 4px 0 0; padding-left: 20px; }
-footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 18px; }
-@media (max-width: 760px) {
-  .play, .cards, .results { grid-template-columns: minmax(0, 1fr); }
-  .pg-grid { grid-template-columns: minmax(0, 1fr); }
-  h1 { font-size: 1.4rem; }
-  section { padding: 14px; }
+ul.plain { margin: 8px 0 0; padding-left: 20px; }
+ul.plain li { margin: 4px 0; }
+footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 22px; }
+@media (max-width: 900px) {
+  .play { grid-template-columns: minmax(0, 1fr); }
+  .controls { position: static; max-height: none; }
+}
+@media (max-width: 720px) {
+  main { padding: 0 12px 36px; }
+  .cards, .results, .pg-grid { grid-template-columns: minmax(0, 1fr); }
+  section { padding: 18px 16px; }
+  header.hero { padding: 22px 18px; }
+  .formula { font-size: 1.15rem; }
 }
 
 </style>
 </head>
 <body>
+<nav class="top" aria-label="Sections"><div>
+  <a href="#idea">The idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explorations</a><a href="#limitation">Keep in mind</a><a href="#grounding">Source</a>
+</div></nav>
 <main>
-<header class="top">
-<div class="badges"><span class="tag paper">From the paper</span></div>
+<header class="hero">
+<div class="chips"><span class="chip solid">From the paper</span><span class="chip">Attention Is All You Need</span><span class="chip">§3.2.1</span><span class="chip">Eq. (1)</span></div>
 <h1>Scaled Dot-Product Attention</h1>
-<p class="cite">Attention Is All You Need · §3.2.1 · Eq. (1)</p>
-<p class="muted small">Written for: Engineering undergraduates who know basic linear algebra (vectors, matrices, dot products) but have not studied transformers.</p>
+<p>Written for: Engineering undergraduates who know basic linear algebra (vectors, matrices, dot products) but have not studied transformers.</p>
 </header>
 
 <section id="idea">
-<h2>The idea</h2>
-<p>A query asks a question; every key is compared with it by a dot product, and the resulting scores say how relevant each value is. Softmax turns those scores into weights that sum to one, and the output is the weighted average of the value rows. Dividing the scores by √d<sub>k</sub> keeps them from growing so large that softmax becomes nearly one-hot.</p><p><b>Why it matters.</b> This single equation is the core of the transformer: it is how every token gathers information from every other token, and the 1/√d<sub>k</sub> factor is what keeps that gathering trainable as dimensions grow.</p><div class="from-paper"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div></div>
+<h2><span class="no">1</span>The idea</h2>
+<p class="lead">Attention lets each query look at every key and decide how much of each value to copy. We take the dot product of a query with each key to get a raw score, optionally divide by √d<sub>k</sub>, and run a softmax so the scores become weights that sum to 1. The output for that query is then the weighted average of the value rows.</p><p class="why"><b>Why it matters.</b> This one equation is the core of the transformer: it is how every token gathers information from every other token, and the 1/√d<sub>k</sub> factor is what keeps that gathering stable as dimensions grow.</p><div class="from-paper"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div></div>
 </section>
 
 <section id="symbols">
-<h2>Symbols</h2>
-<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym">Q</td><td>matrix of queries, one row per query, each row of length d<sub>k</sub></td></tr><tr><td class="sym">K</td><td>matrix of keys, one row per key, each row of length d<sub>k</sub></td></tr><tr><td class="sym">V</td><td>matrix of values, one row per key, each row of length d<sub>v</sub></td></tr><tr><td class="sym">d<sub>k</sub></td><td>dimension of each query and key vector</td></tr><tr><td class="sym">d<sub>v</sub></td><td>dimension of each value vector</td></tr><tr><td class="sym">QK<sup>T</sup></td><td>matrix of raw dot-product scores, entry (i, j) = q<sub>i</sub> · k<sub>j</sub></td></tr><tr><td class="sym">softmax</td><td>applied to each row of scores, turning it into non-negative weights that sum to 1</td></tr><tr><td class="sym">√d<sub>k</sub></td><td>the scaling divisor that counteracts large dot products</td></tr></tbody></table>
+<h2><span class="no">2</span>Symbols</h2>
+<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym"><span>Q</span></td><td>matrix of queries, one row per query, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>K</span></td><td>matrix of keys, one row per key, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>V</span></td><td>matrix of values, one row per key, each of dimension d<sub>v</sub></td></tr><tr><td class="sym"><span>d<sub>k</sub></span></td><td>dimension of the queries and keys (number of columns of Q and K)</td></tr><tr><td class="sym"><span>d<sub>v</sub></span></td><td>dimension of the values (number of columns of V)</td></tr><tr><td class="sym"><span>QK<sup>T</sup></span></td><td>matrix of raw dot-product scores, entry (i, j) = q<sub>i</sub> · k<sub>j</sub></td></tr><tr><td class="sym"><span>softmax</span></td><td>applied to each row of scores, turning them into non-negative weights that sum to 1</td></tr></tbody></table>
 </section>
 
 <section id="how">
-<h2>How it works</h2>
-<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: each entry is the dot product of one query with one key.</li><li>Divide every score by √d<sub>k</sub> (this is the scaling step; it can be switched off).</li><li>Apply softmax to each row of scores, giving attention weights A that are positive and sum to 1 per row.</li><li>Multiply the weights by V: output row i = Σ<sub>j</sub> A<sub>ij</sub> v<sub>j</sub>, a weighted average of the value rows.</li></ol>
+<h2><span class="no">3</span>How it works</h2>
+<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: each entry is the dot product of one query with one key.</li><li>If scaling is on, divide every score by √d<sub>k</sub>; if off, leave the scores as they are.</li><li>Apply softmax to each row of scores to get the attention weights, which are non-negative and sum to 1 per row.</li><li>Multiply the weights by V: each output row is the weighted sum of the rows of V.</li></ol>
 </section>
 
 <section id="playground">
-<div class="badges"><span class="tag ours">Our example</span></div>
-<h2>Interactive playground</h2>
+<h2><span class="no">4</span>Interactive playground <span class="tag ours">Our example</span></h2>
 <p class="muted small">Small made-up inputs chosen for clarity. Change any control: the picture, the values and the checks are recalculated immediately.</p>
 <div class="play">
-  <div class="panel">
-    <h3>Controls</h3>
+  <aside class="controls">
+    <p class="kicker">Controls</p>
     <div id="pg-controls"></div>
     <button type="button" id="pg-reset">Reset to defaults</button>
-  </div>
-  <div class="panel">
+  </aside>
+  <div class="stage">
     <div id="pg-error" class="err" hidden></div>
+    <div id="pg-tiles" class="tiles"></div>
     <div id="pg-visual"></div>
     <div class="results">
-      <div>
-        <h3>Intermediate and final values</h3>
+      <div class="box">
+        <p class="kicker">Intermediate and final values</p>
         <table id="pg-readouts"><tbody></tbody></table>
       </div>
-      <div id="pg-checks-wrap" hidden>
-        <h3>Live checks</h3>
+      <div class="box" id="pg-checks-wrap" hidden>
+        <p class="kicker">Live checks</p>
         <ul class="checks" id="pg-checks"></ul>
       </div>
     </div>
@@ -145,24 +226,24 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top
 </section>
 
 <section id="explore">
-<h2>Guided explorations</h2>
-<div class="cards"><div class="card"><h3>Exploration 1: Equal scores versus one dominant score</h3><dl><dt>Change</dt><dd>Set the query to [1, 1] and the keys to [[1, 1], [1, 1], [1, 1]] so all three scores are identical, then set the keys to [[1, 1], [0, 0], [0, 0]] so the first key dominates.</dd><dt>Observe</dt><dd>With equal scores the weight row is [0.333, 0.333, 0.333] and the output is the plain average of the three value rows. With one dominant key the weight row moves toward [1, 0, 0] and the output moves toward that key's value row.</dd><dt>Why</dt><dd>Softmax is monotone in the scores, so the largest score always gets the largest weight; when all scores are equal the exponentials cancel and the weights are uniform.</dd></dl><p style="margin-top:10px"><button type="button" class="try" data-set="{&quot;Q&quot;: [[1, 1]], &quot;K&quot;: [[1, 1], [0, 0], [0, 0]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]], &quot;scaled&quot;: true, &quot;temperature&quot;: 1}">Try it in the playground</button></p></div><div class="card"><h3>Exploration 2: Turning the 1/√d<sub>k</sub> scaling off</h3><dl><dt>Change</dt><dd>Keep the same Q, K and V but switch the scaling toggle off, so the raw dot products are fed straight into softmax.</dd><dt>Observe</dt><dd>The largest weight grows and the smaller weights shrink: the weight row becomes more peaked, and the output moves closer to the dominant value row.</dd><dt>Why</dt><dd>Without the 1/√d<sub>k</sub> divisor the scores are √d<sub>k</sub> times larger, and softmax amplifies differences in its inputs, so large scores push the distribution toward one-hot.</dd></dl><p style="margin-top:10px"><button type="button" class="try" data-set="{&quot;Q&quot;: [[1, 1]], &quot;K&quot;: [[1, 1], [0, 0], [0, 0]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]], &quot;scaled&quot;: false, &quot;temperature&quot;: 1}">Try it in the playground</button></p></div></div>
+<h2><span class="no">5</span>Guided explorations</h2>
+<div class="cards"><div class="card"><h3><small>Exploration 1</small>Equal scores give a uniform average</h3><dl><dt>Change</dt><dd>Set Q to [[1,0]], K to [[1,0],[1,0],[1,0]] and V to [[1,0],[0,1],[1,1]], with scaling on.</dd><dt>Observe</dt><dd>All three raw scores are 1, so after softmax every weight is 1/3 and the output is the plain average of the three value rows, [0.667, 0.667].</dd><dt>Why</dt><dd>Softmax of equal scores is uniform, and the output is the weighted sum of the rows of V, so equal weights mean an unweighted mean.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;Q&quot;: [[1, 0]], &quot;K&quot;: [[1, 0], [1, 0], [1, 0]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]], &quot;scaling&quot;: true}">Try it in the playground &#9654;</button></p></div><div class="card"><h3><small>Exploration 2</small>One dominant score concentrates the weight</h3><dl><dt>Change</dt><dd>Keep Q and V, but set K to [[1,0],[0,1],[0,1]] so the first key matches the query and the others do not.</dd><dt>Observe</dt><dd>The first weight jumps to about 0.576 while the other two drop to about 0.212 each, and the output moves toward the first value row [1, 0].</dd><dt>Why</dt><dd>A larger dot product for key 1 makes its score larger, and softmax exponentiates scores, so a modest score gap becomes a large weight gap.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;Q&quot;: [[1, 0]], &quot;K&quot;: [[1, 0], [0, 1], [0, 1]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]], &quot;scaling&quot;: true}">Try it in the playground &#9654;</button></p></div></div>
 </section>
 
 <section id="limitation" class="limit">
-<h2>Keep in mind</h2>
-<p>The demo uses one query and three keys with d<sub>k</sub> = 2 so the numbers fit on screen; the paper applies the same equation to whole sequences of queries at once, with d<sub>k</sub> typically 64, and the scaling matters most exactly there, where unscaled dot products grow large.</p>
+<h2><span class="no">!</span>Keep in mind</h2>
+<p>The scaling factor only matters when the scores are large: with the tiny integer vectors used here, turning scaling off changes the weights only slightly. The paper's point is about large d<sub>k</sub>, where unscaled dot products grow in magnitude and push softmax into regions with extremely small gradients.</p>
 </section>
 
 <section id="grounding">
-<h2>Source grounding</h2>
-<p><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div><blockquote>“We compute the dot products of the query with all keys, divide each by √d&lt;sub&gt;k&lt;/sub&gt;, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Attention(Q, K, V) = softmax(QK^T / √d_k) V”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d_k.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>The demo fixes one query row and three key/value rows with d<sub>k</sub> = 2 and d<sub>v</sub> = 2; the paper uses full matrices of many queries and larger dimensions.</li><li>The temperature slider is not in the paper; it is an extra knob that divides the scores before softmax so the sharpening effect can be seen continuously.</li><li>The demo does not implement multi-head attention, masking, positional encodings or any training; it evaluates Eq. (1) once on the numbers you type.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
+<h2><span class="no">6</span>Source grounding</h2>
+<p class="lead"><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div><blockquote>“We compute the dot products of the query with all keys, divide each by √d_k, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Attention(Q, K, V) = softmax(QK^T / √d_k) V”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d_k.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>The demo uses one or two queries and three keys with tiny integer entries; the paper uses full sequences of learned vectors.</li><li>Q, K and V are typed in by hand rather than produced by learned projection matrices.</li><li>The softmax is computed in plain floating point with no numerical stabilisation tricks beyond subtracting nothing, since the demo scores are small.</li><li>The scaling toggle is an on/off switch for the 1/√d<sub>k</sub> factor; the paper always applies it.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
 </section>
 
 <footer>All values computed live in your browser. This page works offline and loads nothing from the network.</footer>
 </main>
 
-<script type="application/json" id="pg-data">{"controls": [{"id": "Q", "type": "matrix", "label": "Queries Q (1 × d\u003csub>k\u003c/sub>)", "default": [[1, 1]], "rows": 1, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "K", "type": "matrix", "label": "Keys K (3 × d\u003csub>k\u003c/sub>)", "default": [[1, 1], [0, 0], [0, 0]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "V", "type": "matrix", "label": "Values V (3 × d\u003csub>v\u003c/sub>)", "default": [[1, 0], [0, 1], [1, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "scaled", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}, {"id": "temperature", "type": "slider", "label": "Softmax temperature τ", "default": 1, "min": 0.25, "max": 4, "step": 0.25}], "readouts": [{"key": "scores", "label": "Raw scores QKᵀ", "digits": 3, "unit": ""}, {"key": "scaledScores", "label": "Scaled scores", "digits": 3, "unit": ""}, {"key": "weights", "label": "Attention weights", "digits": 3, "unit": ""}, {"key": "rowSums", "label": "Weight row sums", "digits": 3, "unit": ""}, {"key": "maxWeight", "label": "Largest weight", "digits": 3, "unit": ""}, {"key": "output", "label": "Output", "digits": 3, "unit": ""}, {"key": "scoreSpread", "label": "Score spread (max − min)", "digits": 3, "unit": ""}], "tests": [{"name": "each weight row sums to 1", "params": {}, "expect": "out.rowSums.every(s => Math.abs(s - 1) \u003c 1e-9)"}, {"name": "output is the weighted sum of the value rows", "params": {}, "expect": "out.output.every((row, i) => row.every((val, t) => Math.abs(val - out.weights[i].reduce((acc, w, j) => acc + w * out.V[j][t], 0)) \u003c 1e-9))"}, {"name": "weights are non-negative", "params": {}, "expect": "out.weights.every(r => r.every(w => w >= 0))"}, {"name": "equal scores give uniform weights", "params": {"Q": [[1, 1]], "K": [[1, 1], [1, 1], [1, 1]], "V": [[1, 0], [0, 1], [1, 1]], "scaled": true, "temperature": 1}, "expect": "out.weightRow.every(w => Math.abs(w - 1/3) \u003c 1e-9)"}, {"name": "unscaled scores are √d\u003csub>k\u003c/sub> times the scaled ones", "params": {"Q": [[1, 1]], "K": [[1, 1], [0, 0], [0, 0]], "V": [[1, 0], [0, 1], [1, 1]], "scaled": true, "temperature": 1}, "expect": "Math.abs(out.scores[0][0] - out.scaledScores[0][0] * out.sqrtDk) \u003c 1e-9"}, {"name": "dominant key gets the largest weight", "params": {"Q": [[1, 1]], "K": [[1, 1], [0, 0], [0, 0]], "V": [[1, 0], [0, 1], [1, 1]], "scaled": false, "temperature": 1}, "expect": "H.argmax(out.weightRow) === 0"}]}</script>
+<script type="application/json" id="pg-data">{"controls": [{"id": "Q", "type": "matrix", "label": "Queries Q (rows = queries, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0]], "rows": 1, "cols": 2, "min": -3, "max": 3, "step": 1}, {"id": "K", "type": "matrix", "label": "Keys K (rows = keys, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0], [0, 1], [0, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 1}, {"id": "V", "type": "matrix", "label": "Values V (rows = keys, cols = d\u003csub>v\u003c/sub>)", "default": [[1, 0], [0, 1], [1, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 1}, {"id": "scaling", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}, {"id": "gain", "type": "slider", "label": "Score gain (multiplies the raw scores)", "default": 1, "min": 0.5, "max": 4, "step": 0.5}], "readouts": [{"key": "sqrtDk", "label": "√d\u003csub>k\u003c/sub>", "digits": 3, "unit": ""}, {"key": "divisor", "label": "divisor applied to scores", "digits": 3, "unit": ""}, {"key": "S", "label": "raw scores QKᵀ", "digits": 2, "unit": ""}, {"key": "scores", "label": "scores after scaling and gain", "digits": 2, "unit": ""}, {"key": "weights", "label": "attention weights", "digits": 3, "unit": ""}, {"key": "rowSums", "label": "weight row sums", "digits": 3, "unit": ""}, {"key": "output", "label": "output weights·V", "digits": 3, "unit": ""}, {"key": "maxWeight", "label": "largest weight", "digits": 3, "unit": ""}], "tests": [{"name": "each weight row sums to 1", "params": {}, "expect": "out.rowSums.every(s => Math.abs(s - 1) \u003c 1e-9)"}, {"name": "weights are non-negative", "params": {}, "expect": "out.weights.every(r => r.every(w => w >= -1e-12))"}, {"name": "output equals weighted sum of V rows", "params": {}, "expect": "out.output.every((row, i) => row.every((val, c) => Math.abs(val - out.weights[i].reduce((a, w, j) => a + w * p.V[j][c], 0)) \u003c 1e-9))"}, {"name": "scaling off leaves raw scores unchanged", "params": {"scaling": false, "gain": 1}, "expect": "out.scores.every((r, i) => r.every((v, j) => Math.abs(v - out.S[i][j]) \u003c 1e-9))"}, {"name": "equal keys give uniform weights", "params": {"Q": [[1, 0]], "K": [[1, 0], [1, 0], [1, 0]], "V": [[1, 0], [0, 1], [1, 1]], "scaling": true, "gain": 1}, "expect": "out.weights[0].every(w => Math.abs(w - 1 / 3) \u003c 1e-9) && Math.abs(out.output[0][0] - 2 / 3) \u003c 1e-9 && Math.abs(out.output[0][1] - 2 / 3) \u003c 1e-9"}, {"name": "scaling on divides scores by sqrt(d\u003csub>k\u003c/sub>)", "params": {"scaling": true, "gain": 1}, "expect": "out.scores.every((r, i) => r.every((v, j) => Math.abs(v - out.S[i][j] / Math.sqrt(out.dk)) \u003c 1e-9))"}]}</script>
 <script>
 /* Paper to Playground helper library.
    H  : pure drawing + math helpers available to generated compute()/render() code.
@@ -171,7 +252,7 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top
 var H = (function () {
   'use strict';
   var H = {};
-  var NAMED = { accent: 'var(--accent)', fg: 'var(--fg)', muted: 'var(--muted)', line: 'var(--line)',
+  var NAMED = { accent: 'var(--accent)', primary: 'var(--primary)', fg: 'var(--fg)', muted: 'var(--muted)', line: 'var(--line)',
     good: 'var(--good)', bad: 'var(--bad)', warn: 'var(--ours)', paper: 'var(--paper)', none: 'none', bg: 'var(--card)' };
   H.colors = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)'];
 
@@ -302,7 +383,7 @@ var H = (function () {
     var bx = x2 - ux * hs, by = y2 - uy * hs;
     var s = H.line(x1, y1, bx, by, { color: c, width: w, dash: o.dash });
     s += '<polygon points="' + r2(x2) + ',' + r2(y2) + ' ' + r2(bx - uy * hs * 0.5) + ',' + r2(by + ux * hs * 0.5) + ' ' + r2(bx + uy * hs * 0.5) + ',' + r2(by - ux * hs * 0.5) + '" style="fill:' + c + '"/>';
-    if (o.label !== undefined && o.label !== '') s += T((x1 + x2) / 2 + uy * 12, (y1 + y2) / 2 - ux * 7 + (ux ? 0 : 4), o.label, { size: 11, color: o.labelColor || 'muted' });
+    if (o.label !== undefined && o.label !== '') s += T((x1 + x2) / 2 + uy * 12, (y1 + y2) / 2 - ux * 7 + (ux ? 0 : 4), o.label, { size: 12, color: o.labelColor || 'muted' });
     return s;
   };
 
@@ -322,8 +403,8 @@ var H = (function () {
   H.bars = function (o) {
     o = o || {};
     var vals = arr(o.values).map(Number), k = vals.length;
-    var labels = arr(o.labels), w = n(o.w, 440), h = n(o.h, 260), dg = o.digits === undefined ? 3 : o.digits;
-    var m = { l: 52, r: 12, t: o.title ? 34 : 16, b: o.xLabel ? 48 : 30 };
+    var labels = arr(o.labels), w = n(o.w, 390), h = n(o.h, 280), dg = o.digits === undefined ? 3 : o.digits;
+    var m = { l: 54, r: 12, t: o.title ? 42 : 18, b: o.xLabel ? 52 : 32 };
     var f = finite(vals), lo = Math.min(0, f.length ? Math.min.apply(null, f) : 0), hi = Math.max(0, f.length ? Math.max.apply(null, f) : 1);
     if (o.min !== undefined && isFinite(o.min)) lo = Math.min(lo, Number(o.min));
     var span0 = hi - lo;
@@ -333,22 +414,22 @@ var H = (function () {
     var tk = ticks(lo, hi, 5), pw = w - m.l - m.r, ph = h - m.t - m.b;
     var Y = function (v) { return m.t + ph - (v - lo) / (hi - lo) * ph; };
     var hl = hlSet(o.highlight), s = '';
-    if (o.title) s += T(w / 2, 18, o.title, { size: 13, bold: true });
+    if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
     tk.t.forEach(function (v) {
-      s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1 });
-      s += T(m.l - 6, Y(v) + 4, H.fmt(v, tk.d), { anchor: 'end', size: 11, color: 'muted' });
+      s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' });
+      s += T(m.l - 6, Y(v) + 4, H.fmt(v, tk.d), { anchor: 'end', size: 12.5, color: 'muted' });
     });
     var slot = k ? pw / k : pw, bw = Math.min(64, slot * 0.7);
     for (var i = 0; i < k; i++) {
       var v = isFinite(vals[i]) ? vals[i] : 0, cx = m.l + slot * (i + 0.5), y0 = Y(0), y1 = Y(H.clamp(v, lo, hi));
       var c = o.colors ? col(arr(o.colors)[i], 'var(--c1)') : (hl[i] ? 'var(--accent)' : col(o.color, 'var(--c1)'));
-      s += H.rect(cx - bw / 2, Math.min(y0, y1), bw, Math.abs(y1 - y0), { fill: c, rx: 2, opacity: (o.highlight !== undefined && !hl[i]) ? 0.55 : 0.9 });
-      if (k <= 16) s += T(cx, (v >= 0 ? Math.min(y0, y1) - 5 : Math.max(y0, y1) + 13), H.fmt(vals[i], dg), { size: k > 10 ? 9 : 11, bold: !!hl[i] });
-      if (k <= 24) s += T(cx, m.t + ph + 15, labels[i] === undefined ? String(i + 1) : labels[i], { size: k > 12 ? 9 : 11, color: 'muted' });
+      s += H.rect(cx - bw / 2, Math.min(y0, y1), bw, Math.abs(y1 - y0), { fill: c, rx: 5, opacity: (o.highlight !== undefined && !hl[i]) ? 0.45 : 0.95 });
+      if (k <= 16) s += T(cx, (v >= 0 ? Math.min(y0, y1) - 5 : Math.max(y0, y1) + 13), H.fmt(vals[i], dg), { size: k > 10 ? 10 : 13, bold: true });
+      if (k <= 24) s += T(cx, m.t + ph + 17, labels[i] === undefined ? String(i + 1) : labels[i], { size: k > 12 ? 10 : 12.5, color: 'muted' });
     }
     s += H.line(m.l, Y(0), w - m.r, Y(0), { color: 'fg', width: 1 });
-    if (o.yLabel) s += T(13, m.t + ph / 2, o.yLabel, { size: 11, color: 'muted', rotate: -90 });
-    if (o.xLabel) s += T(m.l + pw / 2, h - 8, o.xLabel, { size: 11, color: 'muted' });
+    if (o.yLabel) s += T(13, m.t + ph / 2, o.yLabel, { size: 12.5, color: 'muted', rotate: -90 });
+    if (o.xLabel) s += T(m.l + pw / 2, h - 8, o.xLabel, { size: 12.5, color: 'muted' });
     return H.svg(w, h, s);
   };
 
@@ -363,8 +444,8 @@ var H = (function () {
     });
     var pts = arr(o.points).map(function (q) { return { x: catX(q && q.x), y: Number(q && q.y), label: q && q.label, color: q && q.color }; });
     var marks = arr(o.markers).map(function (q) { return { x: catX(q && q.x), label: q && q.label }; });
-    var w = n(o.w, 460), h = n(o.h, 280), named = series.filter(function (sr) { return sr.name; });
-    var m = { l: 54, r: 14, t: (o.title ? 34 : 14) + (named.length ? 16 : 0), b: 44 };
+    var w = n(o.w, 400), h = n(o.h, 290), named = series.filter(function (sr) { return sr.name; });
+    var m = { l: 56, r: 16, t: (o.title ? 40 : 14) + (named.length ? 18 : 0), b: 48 };
     var xs = [], ys = [];
     series.forEach(function (sr) { xs = xs.concat(finite(sr.x)); ys = ys.concat(finite(sr.y)); });
     pts.forEach(function (p) { if (isFinite(p.x)) xs.push(Number(p.x)); if (isFinite(p.y)) ys.push(Number(p.y)); });
@@ -379,10 +460,10 @@ var H = (function () {
     var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var X = function (v) { return m.l + (v - x0) / (x1 - x0) * pw; }, Y = function (v) { return m.t + ph - (H.clamp(v, y0, y1) - y0) / (y1 - y0) * ph; };
     var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5);
-    if (o.title) s += T(w / 2, 18, o.title, { size: 13, bold: true });
-    ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1 }) + T(m.l - 6, Y(v) + 4, H.fmt(v, ty.d), { anchor: 'end', size: 11, color: 'muted' }); });
+    if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
+    ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' }) + T(m.l - 6, Y(v) + 4, H.fmt(v, ty.d), { anchor: 'end', size: 12.5, color: 'muted' }); });
     if (cat) tx = { t: H.range(cat.length).filter(function (i) { return cat.length <= 12 || i % Math.ceil(cat.length / 12) === 0; }), d: 0 };
-    tx.t.forEach(function (v) { s += H.line(X(v), m.t + ph, X(v), m.t + ph + 4, { color: 'muted', width: 1 }) + T(X(v), m.t + ph + 16, cat ? cat[v] : H.fmt(v, tx.d), { size: 11, color: 'muted' }); });
+    tx.t.forEach(function (v) { s += H.line(X(v), m.t + ph, X(v), m.t + ph + 4, { color: 'muted', width: 1 }) + T(X(v), m.t + ph + 16, cat ? cat[v] : H.fmt(v, tx.d), { size: 12.5, color: 'muted' }); });
     s += H.line(m.l, m.t + ph, w - m.r, m.t + ph, { color: 'fg', width: 1 }) + H.line(m.l, m.t, m.l, m.t + ph, { color: 'fg', width: 1 });
     marks.forEach(function (mk) {
       if (!isFinite(mk.x)) return;
@@ -390,8 +471,8 @@ var H = (function () {
       if (mk.label !== undefined && mk.label !== '') s += T(H.clamp(X(mk.x), m.l + 30, w - m.r - 30), m.t + 11, mk.label, { size: 11, color: 'accent', bold: true });
     });
     series.forEach(function (sr) {
-      s += H.path(sr.x.map(function (xv, i) { return [isFinite(xv) && isFinite(sr.y[i]) ? X(xv) : NaN, isFinite(sr.y[i]) ? Y(sr.y[i]) : NaN]; }), { color: sr.color, width: 2, dash: sr.dash });
-      if (sr.x.length <= 24) sr.x.forEach(function (xv, i) { if (isFinite(xv) && isFinite(sr.y[i])) s += H.circle(X(xv), Y(sr.y[i]), 2.5, { fill: sr.color }); });
+      s += H.path(sr.x.map(function (xv, i) { return [isFinite(xv) && isFinite(sr.y[i]) ? X(xv) : NaN, isFinite(sr.y[i]) ? Y(sr.y[i]) : NaN]; }), { color: sr.color, width: 2.6, dash: sr.dash });
+      if (sr.x.length <= 24) sr.x.forEach(function (xv, i) { if (isFinite(xv) && isFinite(sr.y[i])) s += H.circle(X(xv), Y(sr.y[i]), 3.2, { fill: sr.color }); });
     });
     pts.forEach(function (p) {
       if (!isFinite(p.x) || !isFinite(p.y)) return;
@@ -400,11 +481,11 @@ var H = (function () {
     });
     var lx = m.l;
     named.forEach(function (sr) {
-      s += H.line(lx, m.t - 10, lx + 16, m.t - 10, { color: sr.color, width: 3 }) + T(lx + 21, m.t - 6, sr.name, { anchor: 'start', size: 11 });
-      lx += 34 + sr.name.length * 6.4;
+      s += H.line(lx, m.t - 10, lx + 16, m.t - 10, { color: sr.color, width: 3 }) + T(lx + 21, m.t - 6, sr.name, { anchor: 'start', size: 12.5 });
+      lx += 36 + sr.name.length * 7.2;
     });
-    if (o.yLabel) s += T(13, m.t + ph / 2, o.yLabel, { size: 11, color: 'muted', rotate: -90 });
-    if (o.xLabel) s += T(m.l + pw / 2, h - 8, o.xLabel, { size: 11, color: 'muted' });
+    if (o.yLabel) s += T(13, m.t + ph / 2, o.yLabel, { size: 12.5, color: 'muted', rotate: -90 });
+    if (o.xLabel) s += T(m.l + pw / 2, h - 8, o.xLabel, { size: 12.5, color: 'muted' });
     return H.svg(w, h, s);
   };
 
@@ -414,26 +495,26 @@ var H = (function () {
     var rl = arr(o.rowLabels), cl = arr(o.colLabels), dg = o.digits === undefined ? 2 : o.digits, shade = o.shade !== false;
     var fm = typeof o.fmt === 'function' ? o.fmt : function (v) { return H.fmt(v, dg); };
     var maxL = 0; rl.forEach(function (t) { maxL = Math.max(maxL, String(t).length); });
-    var left = rl.length ? Math.min(150, 12 + maxL * 6.6) : 8, top = (o.title ? 28 : 6) + (cl.length ? 18 : 0);
+    var left = rl.length ? Math.min(170, 14 + maxL * 7.4) : 8, top = (o.title ? 34 : 6) + (cl.length ? 20 : 0);
     var longest = 4; M.forEach(function (r) { r.forEach(function (v) { longest = Math.max(longest, String(fm(v)).length); }); });
     cl.forEach(function (t) { longest = Math.max(longest, String(t).length * 0.9); });
-    var cw = n(o.cellW, H.clamp(longest * 7.2 + 12, 40, 110)), ch = n(o.cellH, 30);
-    var w = Math.max(left + cols * cw + 8, o.title ? String(o.title).length * 7.4 + 16 : 0), h = top + rows * ch + 8;
+    var cw = n(o.cellW, H.clamp(longest * 8.2 + 16, 52, 120)), ch = n(o.cellH, 36);
+    var w = Math.max(left + cols * cw + 8, o.title ? String(o.title).length * 8.4 + 16 : 0), h = top + rows * ch + 8;
     var all = []; M.forEach(function (r) { all = all.concat(finite(r.map(Number))); });
     var lo = o.min !== undefined ? Number(o.min) : (all.length ? Math.min.apply(null, all) : 0), hi = o.max !== undefined ? Number(o.max) : (all.length ? Math.max.apply(null, all) : 1);
     var hl = {}; arr(o.highlight).forEach(function (rc) { if (Array.isArray(rc)) hl[rc[0] + ',' + rc[1]] = 1; });
     var s = '';
-    if (o.title) s += T(w / 2, 17, o.title, { size: 13, bold: true });
-    for (var j = 0; j < cols; j++) if (cl[j] !== undefined) s += T(left + cw * (j + 0.5), top - 6, cl[j], { size: 11, color: 'muted' });
+    if (o.title) s += T(w / 2, 17, o.title, { size: 15, bold: true });
+    for (var j = 0; j < cols; j++) if (cl[j] !== undefined) s += T(left + cw * (j + 0.5), top - 6, cl[j], { size: 12.5, color: 'muted' });
     for (var i = 0; i < rows; i++) {
-      if (rl[i] !== undefined) s += T(left - 6, top + ch * (i + 0.5) + 4, rl[i], { anchor: 'end', size: 11, color: 'muted' });
+      if (rl[i] !== undefined) s += T(left - 6, top + ch * (i + 0.5) + 4, rl[i], { anchor: 'end', size: 12.5, color: 'muted' });
       for (j = 0; j < cols; j++) {
         var v = M[i][j], x = left + cw * j, y = top + ch * i, isN = typeof v === 'number' && isFinite(v);
         var t = isN && hi > lo ? (v - lo) / (hi - lo) : (isN && shade && hi === lo ? 0.5 : 0);
         var on = hl[i + ',' + j] || o.highlightRow === i || o.highlightCol === j;
-        s += H.rect(x + 1, y + 1, cw - 2, ch - 2, { fill: 'var(--card)', stroke: on ? 'accent' : 'line', width: on ? 2 : 1, rx: 3 });
-        if (shade && isN) s += H.rect(x + 2, y + 2, cw - 4, ch - 4, { fill: col(o.color, 'var(--c1)'), opacity: 0.08 + 0.62 * H.clamp(t, 0, 1), rx: 2 });
-        s += T(x + cw / 2, y + ch / 2 + 4, v === undefined ? '' : fm(v), { size: 12, bold: !!on });
+        s += H.rect(x + 1, y + 1, cw - 2, ch - 2, { fill: 'var(--card)', stroke: on ? 'accent' : 'line', width: on ? 2.5 : 1, rx: 6 });
+        if (shade && isN) s += H.rect(x + 2, y + 2, cw - 4, ch - 4, { fill: col(o.color, 'var(--c1)'), opacity: 0.1 + 0.6 * H.clamp(t, 0, 1), rx: 5 });
+        s += T(x + cw / 2, y + ch / 2 + 5, v === undefined ? '' : fm(v), { size: 14, bold: !!on });
       }
     }
     return H.svg(w, h, s);
@@ -456,10 +537,10 @@ var H = (function () {
       nd = nd || {};
       var label = String(nd.label !== undefined ? nd.label : (nd.id !== undefined ? nd.id : '')), sub = nd.sub !== undefined ? H.fmt(nd.sub) : '';
       return { id: String(nd.id !== undefined ? nd.id : i), label: label, sub: sub, x: Number(nd.x), y: Number(nd.y), hl: !!nd.highlight,
-        bw: Math.max(66, 7.1 * Math.max(label.length, sub.length) + 20), bh: sub ? 46 : 30 };
+        bw: Math.max(78, 8 * Math.max(label.length, sub.length) + 24), bh: sub ? 52 : 36 };
     });
     if (nodes.some(function (nd) { return !isFinite(nd.x) || !isFinite(nd.y); })) {
-      var gap = 46; arr(o.edges).forEach(function (e) { if (e && e.label !== undefined) gap = Math.max(gap, String(e.label).length * 6.4 + 22); });
+      var gap = 50; arr(o.edges).forEach(function (e) { if (e && e.label !== undefined) gap = Math.max(gap, String(e.label).length * 7.2 + 26); });
       var cx = 14; nodes.forEach(function (nd) { nd.x = cx + nd.bw / 2; nd.y = 44; cx += nd.bw + gap; });
     }
     else {
@@ -469,7 +550,7 @@ var H = (function () {
       arr(o.edges).forEach(function (e) {
         var a = byId[String(e && e.from)], b = byId[String(e && e.to)]; if (!a || !b || a === b) return;
         var dx = Math.abs(b.x - a.x), dy = Math.abs(b.y - a.y);
-        if (dx > 1 && dy < (a.bh + b.bh) / 2) sc = Math.max(sc, ((e.label !== undefined ? String(e.label).length * 6.4 + 26 : 34) + (a.bw + b.bw) / 2) / dx);
+        if (dx > 1 && dy < (a.bh + b.bh) / 2) sc = Math.max(sc, ((e.label !== undefined ? String(e.label).length * 7.2 + 28 : 36) + (a.bw + b.bw) / 2) / dx);
       });
       sc = Math.min(sc, 4);
       nodes.forEach(function (nd) { nd.x = (nd.x - x0) * sc + 12 + (sc > 1 ? 0 : x0 - 12 > 0 ? x0 - 12 : 0); });
@@ -482,16 +563,16 @@ var H = (function () {
       var t = Math.min(dx ? (a.bw / 2 + 2) / Math.abs(dx) : Infinity, dy ? (a.bh / 2 + 2) / Math.abs(dy) : Infinity);
       return [a.x + dx * t, a.y + dy * t];
     }
-    var s = o.title ? T(w / 2, 17, o.title, { size: 13, bold: true }) : '';
+    var s = o.title ? T(w / 2, 17, o.title, { size: 15, bold: true }) : '';
     arr(o.edges).forEach(function (e) {
       var a = by[String(e && e.from)], b = by[String(e && e.to)]; if (!a || !b || a === b) return;
       var p = edge(a, b), q = edge(b, a);
       s += H.arrow(p[0], p[1], q[0], q[1], { label: e.label, color: e.highlight ? 'accent' : 'muted' });
     });
     nodes.forEach(function (nd) {
-      s += H.rect(nd.x - nd.bw / 2, nd.y - nd.bh / 2, nd.bw, nd.bh, { fill: 'var(--card)', stroke: nd.hl ? 'accent' : 'muted', width: nd.hl ? 2.5 : 1.2, rx: 7 });
-      s += T(nd.x, nd.y + (nd.sub ? -3 : 4), nd.label, { size: 12, bold: true });
-      if (nd.sub) s += T(nd.x, nd.y + 14, nd.sub, { size: 11, color: nd.hl ? 'accent' : 'muted' });
+      s += H.rect(nd.x - nd.bw / 2, nd.y - nd.bh / 2, nd.bw, nd.bh, { fill: 'var(--card)', stroke: nd.hl ? 'accent' : 'primary', width: nd.hl ? 2.8 : 1.6, rx: 10 });
+      s += T(nd.x, nd.y + (nd.sub ? -4 : 5), nd.label, { size: 13.5, bold: true });
+      if (nd.sub) s += T(nd.x, nd.y + 16, nd.sub, { size: 12.5, color: nd.hl ? 'accent' : 'muted' });
     });
     return H.svg(w, h, s);
   };
@@ -500,7 +581,10 @@ var H = (function () {
   H.grid = function (cols, items) {
     if (Array.isArray(cols)) { items = cols; cols = items.length; }
     cols = Math.max(1, Math.min(2, Math.round(n(cols, 2))));   /* more than 2 columns makes labels unreadable */
-    return '<div class="pg-grid" style="--cols:' + cols + '">' + arr(items).map(function (it) { return '<div class="pg-cell">' + (it || '') + '</div>'; }).join('') + '</div>';
+    return '<div class="pg-grid" style="--cols:' + cols + '">' + arr(items).map(function (it) {
+      var m = /<svg[^>]* width="([0-9.]+)"/.exec(it || '');   /* wide drawings get a full row so they stay readable */
+      return '<div class="pg-cell' + (m && Number(m[1]) > 520 ? ' wide' : '') + '">' + (it || '') + '</div>';
+    }).join('') + '</div>';
   };
   H.note = function (str) { return '<p class="pg-note">' + H.esc(str) + '</p>'; };
   return H;
@@ -569,15 +653,16 @@ var PG = (function () {
 <script>
 function compute(p) {
   const Q = p.Q, K = p.K, V = p.V;
-  const scaled = p.scaled;
-  const tau = p.temperature;
-  const nQ = Q.length, nK = K.length;
-  const dk = Q[0].length, dv = V[0].length;
-  const sqrtDk = Math.sqrt(dk);
-  const divisor = (scaled ? sqrtDk : 1) * tau;
+  const scaling = !!p.scaling;
+  const gain = p.gain;
+
+  const nQ = Q.length;
+  const dk = Q[0].length;
+  const nK = K.length;
+  const dv = V[0].length;
 
   // raw scores S = Q K^T
-  const scores = [];
+  const S = [];
   for (let i = 0; i < nQ; i++) {
     const row = [];
     for (let j = 0; j < nK; j++) {
@@ -585,95 +670,125 @@ function compute(p) {
       for (let t = 0; t < dk; t++) s += Q[i][t] * K[j][t];
       row.push(s);
     }
-    scores.push(row);
+    S.push(row);
   }
 
-  // scaled scores
-  const scaledScores = scores.map(row => row.map(s => s / divisor));
+  const sqrtDk = Math.sqrt(dk);
+  const divisor = scaling ? sqrtDk : 1;
+
+  // scaled scores (before gain) and gained scores
+  const scaled = S.map(r => r.map(v => v / divisor));
+  const scores = scaled.map(r => r.map(v => v * gain));
 
   // softmax per row
-  const weights = scaledScores.map(row => {
-    const m = Math.max(...row);
-    const ex = row.map(s => Math.exp(s - m));
-    const z = H.sum(ex);
-    return ex.map(e => e / z);
+  const weights = scores.map(row => {
+    const m = Math.max.apply(null, row);
+    const ex = row.map(v => Math.exp(v - m));
+    const sum = ex.reduce((a, b) => a + b, 0);
+    if (!(sum > 0)) return row.map(() => 1 / row.length);
+    return ex.map(v => v / sum);
   });
 
   // output = weights V
   const output = [];
   for (let i = 0; i < nQ; i++) {
-    const row = new Array(dv).fill(0);
-    for (let j = 0; j < nK; j++) {
-      for (let t = 0; t < dv; t++) row[t] += weights[i][j] * V[j][t];
+    const row = [];
+    for (let c = 0; c < dv; c++) {
+      let s = 0;
+      for (let j = 0; j < nK; j++) s += weights[i][j] * V[j][c];
+      row.push(s);
     }
     output.push(row);
   }
 
-  const rowSums = weights.map(r => H.sum(r));
-  const maxWeight = Math.max(...weights.map(r => Math.max(...r)));
-  const scoreSpread = Math.max(...scores.map(r => Math.max(...r) - Math.min(...r)));
+  const rowSums = weights.map(r => r.reduce((a, b) => a + b, 0));
+  const maxWeight = Math.max.apply(null, weights.map(r => Math.max.apply(null, r)));
+  const minWeight = Math.min.apply(null, weights.map(r => Math.min.apply(null, r)));
 
   return {
-    Q, K, V, scaled, tau, dk, dv, sqrtDk, divisor,
-    scores, scaledScores, weights, output,
-    rowSums, maxWeight, scoreSpread,
-    weightRow: weights[0],
-    outputRow: output[0]
+    S: S,
+    scaled: scaled,
+    scores: scores,
+    weights: weights,
+    output: output,
+    rowSums: rowSums,
+    maxWeight: maxWeight,
+    minWeight: minWeight,
+    sqrtDk: sqrtDk,
+    divisor: divisor,
+    dk: dk,
+    dv: dv,
+    nQ: nQ,
+    nK: nK
   };
 }
 function render(p, out) {
   const panels = [];
 
-  // Panel 1: raw and scaled scores
-  panels.push(H.matrixTable(out.scores, {
-    title: "Raw scores QKᵀ (row = query, col = key)",
-    rowLabels: ["q₁"],
-    colLabels: ["k₁", "k₂", "k₃"],
+  // Panel 1: raw scores heatmap
+  panels.push(H.heatmap({
+    matrix: out.S,
+    rowLabels: out.S.map((_, i) => "q" + (i + 1)),
+    colLabels: out.S[0].map((_, j) => "k" + (j + 1)),
+    title: "Raw scores S = QKᵀ",
+    digits: 2
+  }));
+
+  // Panel 2: scaled scores heatmap
+  panels.push(H.heatmap({
+    matrix: out.scores,
+    rowLabels: out.scores.map((_, i) => "q" + (i + 1)),
+    colLabels: out.scores[0].map((_, j) => "k" + (j + 1)),
+    title: "Scores after ÷√d_k (=" + H.fmt(out.divisor, 2) + ") and gain",
+    digits: 2
+  }));
+
+  // Panel 3: weights heatmap with row sums
+  panels.push(H.heatmap({
+    matrix: out.weights,
+    rowLabels: out.weights.map((_, i) => "q" + (i + 1) + " (Σ=" + H.fmt(out.rowSums[i], 3) + ")"),
+    colLabels: out.weights[0].map((_, j) => "k" + (j + 1)),
+    title: "Attention weights softmax(scores)",
     digits: 3
   }));
 
-  panels.push(H.matrixTable(out.scaledScores, {
-    title: "Scores after dividing by " + (out.scaled ? "√d_k · τ" : "τ") + " = " + H.fmt(out.divisor, 3),
-    rowLabels: ["q₁"],
-    colLabels: ["k₁", "k₂", "k₃"],
-    digits: 3
-  }));
-
-  // Panel 2: attention weights as bars
-  panels.push(H.bars({
-    labels: ["k₁", "k₂", "k₃"],
-    values: out.weightRow,
-    title: "Attention weights softmax(scores) — row sums to " + H.fmt(out.rowSums[0], 3),
-    yLabel: "weight",
-    xLabel: "key",
-    highlight: H.argmax(out.weightRow),
-    max: 1,
-    digits: 3
-  }));
-
-  // Panel 3: value rows and the weighted output
-  const vLabels = out.V.map((_, j) => "v" + (j + 1));
-  const series = [];
-  for (let t = 0; t < out.dv; t++) {
-    series.push({ name: "dim " + (t + 1), y: out.V.map(row => row[t]) });
+  // Panel 4: output as bars, plus a small diagram of the flow
+  const outLabels = [];
+  for (let i = 0; i < out.nQ; i++) {
+    for (let c = 0; c < out.dv; c++) outLabels.push("q" + (i + 1) + "·v" + (c + 1));
   }
-  panels.push(H.lines({
-    x: vLabels,
-    series: series,
-    title: "Value rows V (output is their weighted average)",
-    xLabel: "value row",
-    yLabel: "component",
-    markers: [{ x: "v1", label: "w₁=" + H.fmt(out.weightRow[0], 2) }]
-  }));
+  const outVals = [];
+  for (let i = 0; i < out.nQ; i++) for (let c = 0; c < out.dv; c++) outVals.push(out.output[i][c]);
 
-  // Panel 4: output vector
-  panels.push(H.vectorTable(out.outputRow, {
-    title: "Output row = Σⱼ wⱼ vⱼ",
-    labels: out.outputRow.map((_, t) => "dim " + (t + 1)),
+  panels.push(H.bars({
+    labels: outLabels,
+    values: outVals,
+    title: "Output = weights · V",
+    yLabel: "value",
+    xLabel: "output component",
     digits: 3
   }));
 
-  return H.grid(2, panels);
+  const flow = H.flow({
+    title: "Calculation flow",
+    nodes: [
+      { id: "q", label: "Q", sub: out.nQ + "×" + out.dk, x: 60, y: 40 },
+      { id: "k", label: "K", sub: out.nK + "×" + out.dk, x: 60, y: 120 },
+      { id: "s", label: "S = QKᵀ", sub: "max " + H.fmt(Math.max.apply(null, out.S.map(r => Math.max.apply(null, r))), 2), x: 210, y: 80 },
+      { id: "w", label: "softmax", sub: "max w " + H.fmt(out.maxWeight, 3), x: 360, y: 80 },
+      { id: "v", label: "V", sub: out.nK + "×" + out.dv, x: 360, y: 160 },
+      { id: "o", label: "output", sub: "weights·V", x: 510, y: 120 }
+    ],
+    edges: [
+      { from: "q", to: "s", label: "dot" },
+      { from: "k", to: "s", label: "dot" },
+      { from: "s", to: "w", label: "÷√d_k" },
+      { from: "w", to: "o", label: "·" },
+      { from: "v", to: "o", label: "·" }
+    ]
+  });
+
+  return H.grid(2, panels) + flow;
 }
 </script>
 <script>
@@ -720,10 +835,10 @@ function render(p, out) {
       var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
       ni.id = fid; row.appendChild(ni);
     } else if (c.type === 'toggle') {
-      var cb = el('input', { type: 'checkbox', id: fid });
+      var cb = el('input', { type: 'checkbox', id: fid, role: 'switch' });
       cb.checked = !!raw[c.id];
-      cb.addEventListener('change', function () { raw[c.id] = cb.checked; st.textContent = cb.checked ? 'on' : 'off'; update(); });
       var st = el('span', { 'class': 'muted small' }, cb.checked ? 'on' : 'off');
+      cb.addEventListener('change', function () { raw[c.id] = cb.checked; st.textContent = cb.checked ? 'on' : 'off'; update(); });
       row.appendChild(cb); row.appendChild(st);
     } else if (c.type === 'select') {
       var sel = el('select', { id: fid });
@@ -734,7 +849,7 @@ function render(p, out) {
       var len = visibleLength(c), cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
         var cell = el('div');
-        cell.appendChild(el('span', { style: 'display:block' }, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
+        cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
         cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }));
         cells.appendChild(cell);
       })(i);
@@ -750,30 +865,44 @@ function render(p, out) {
   }
   function buildAll() { controls.forEach(build); }
 
+  /* single numbers get a big tile; every readout also has a row in the table */
+  var first = null;
+  try { first = compute(PG.params(controls, raw)); } catch (e) { first = null; }
+  var tiles = [];
+  readouts.forEach(function (r, i) {
+    var v = first ? PG.get(first, r.key) : undefined;
+    if (typeof v !== 'number' || tiles.length >= 4) return;
+    var t = el('div', { 'class': 'tile' }), k = el('div', { 'class': 'k' }), val = el('div', { 'class': 'v' });
+    k.innerHTML = r.label; t.appendChild(k); t.appendChild(val); $('pg-tiles').appendChild(t);
+    tiles.push({ i: i, el: val });
+  });
   var rows = readouts.map(function (r) {
-    var tr = el('tr'), th = el('td'), td = el('td', { 'class': 'val', style: 'white-space:pre-wrap' });
+    var tr = el('tr'), th = el('td'), td = el('td', { 'class': 'val' });
     th.innerHTML = r.label; tr.appendChild(th); tr.appendChild(td);
     $('pg-readouts').tBodies[0].appendChild(tr);
     return td;
   });
+  function pills(a, r) { return '<div class="pills">' + a.map(function (x) { return '<span class="pill">' + H.esc(H.fmt(x, r.digits)) + '</span>'; }).join('') + '</div>'; }
   function show(v, r) {
-    var u = r.unit ? ' ' + r.unit : '';
-    if (Array.isArray(v) && v.length && Array.isArray(v[0])) return v.map(function (x) { return H.fmt(x, r.digits); }).join('\n') + u;
-    return H.fmt(v, r.digits) + u;
+    var u = r.unit ? '<span class="unit">' + r.unit + '</span>' : '';
+    if (Array.isArray(v) && v.length && Array.isArray(v[0])) return v.map(function (x) { return pills(x, r); }).join('') + u;
+    if (Array.isArray(v)) return pills(v, r) + u;
+    return '<span class="num">' + H.esc(H.fmt(v, r.digits)) + '</span>' + u;
   }
   function describe(params) {
     return Object.keys(params).map(function (k) { return k + ' = ' + JSON.stringify(params[k]); }).join(', ');
   }
-  var checkItems = tests.map(function (t, i) {
+  var checkItems = tests.map(function (t) {
     var li = el('li'), fixed = t.params && Object.keys(t.params).length;
     li.appendChild(el('span', { 'class': 'mark' }));
-    var nm = el('span'); nm.innerHTML = t.name; li.appendChild(nm);
-    li.appendChild(el('span', { 'class': 'when' }, fixed ? 'known case: ' + describe(t.params) : 'holds for the current settings'));
+    var nm = el('span', { 'class': 'nm' }); nm.innerHTML = t.name; li.appendChild(nm);
+    var when = el('span', { 'class': 'when' }, fixed ? 'Known case: ' + describe(t.params) : 'Holds for the current settings');
     if (fixed) {
       var b = el('button', { type: 'button' }, 'Load this case');
       b.addEventListener('click', function () { load(t.params); });
-      li.appendChild(b);
+      when.appendChild(b);
     }
+    li.appendChild(when);
     $('pg-checks').appendChild(li);
     return li;
   });
@@ -799,7 +928,11 @@ function render(p, out) {
       } catch (e2) { $('pg-visual').innerHTML = ''; msg = 'Drawing error: ' + (e2 && e2.message || e2); }
     }
     $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
-    readouts.forEach(function (r, i) { rows[i].textContent = out ? show(PG.get(out, r.key), r) : '–'; });
+    readouts.forEach(function (r, i) { rows[i].innerHTML = out ? show(PG.get(out, r.key), r) : '–'; });
+    tiles.forEach(function (t) {
+      var r = readouts[t.i];
+      t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
+    });
     tests.forEach(function (t, i) {
       var ok = false;
       try {
