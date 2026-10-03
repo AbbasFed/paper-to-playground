@@ -89,6 +89,11 @@ demo invents, plus a fixed disclaimer that the demo does not reproduce the paper
 Every number on the page comes from the generated `compute()` running in the browser on the current control
 values. `render()` only draws what `compute()` returned.
 
+A vector or matrix can be tied to integer size sliders (`lengthFrom`, `rowsFrom`, `colsFrom`, minimum 1). The page
+keeps the full declared array and only passes the selected part to `compute()`, so shrinking and growing again
+never loses typed values; any change that alters a size (slider, number box, exploration button, reset) rebuilds
+the affected inputs.
+
 ## Checks and repairs
 
 Each check is logged to the trace with pass / fail / warn and a message.
@@ -108,6 +113,8 @@ Each check is logged to the trace with pass / fail / warn and a message.
    an edge sweep runs `compute` and `render` with every control at min and max, every option, and vectors and
    matrices filled with their extremes (so all-zero inputs occur): no exceptions, no NaN;
    every control must change at least one output;
+   vectors and matrices tied to integer size sliders (`lengthFrom`, `rowsFrom`, `colsFrom`) are run at every size
+   the slider allows, 1 included, and `compute` must receive exactly that shape (`resize_sweep`);
    the model's own `<tests>` (known cases with hand-derivable answers) must be true, and its invariants must hold
    at every swept setting;
    `render` must return an SVG with no `NaN` / `undefined` in it;

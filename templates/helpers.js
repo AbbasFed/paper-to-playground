@@ -387,12 +387,21 @@ var PG = (function () {
     });
     return { raw: out, unknown: unknown };
   };
-  /* the object handed to compute()/render(): vectors tied to a size slider are cut to that size */
+  /* the part of a vector/matrix in use: its size slider's value, clamped to 1..declared size. raw always keeps
+     the full declared size, so shrinking and growing again never loses entries */
+  PG.size = function (c, raw) {
+    function pick(src, max) { var v = src ? Number(raw[src]) : NaN; return isFinite(v) ? Math.max(1, Math.min(max, Math.round(v))) : max; }
+    if (c.type === 'vector') return { len: pick(c.lengthFrom, c.length) };
+    if (c.type === 'matrix') return { rows: pick(c.rowsFrom, c.rows), cols: pick(c.colsFrom, c.cols) };
+    return {};
+  };
+  /* the object handed to compute()/render(): vectors and matrices tied to size sliders are cut to that size */
   PG.params = function (controls, raw) {
     var p = clone(raw);
     controls.forEach(function (c) {
-      if (c.type === 'vector' && c.lengthFrom && typeof p[c.lengthFrom] === 'number')
-        p[c.id] = p[c.id].slice(0, Math.max(1, Math.min(c.length, Math.round(p[c.lengthFrom]))));
+      var s = PG.size(c, raw);
+      if (c.type === 'vector' && c.lengthFrom) p[c.id] = p[c.id].slice(0, s.len);
+      else if (c.type === 'matrix' && (c.rowsFrom || c.colsFrom)) p[c.id] = p[c.id].slice(0, s.rows).map(function (r) { return r.slice(0, s.cols); });
     });
     return p;
   };

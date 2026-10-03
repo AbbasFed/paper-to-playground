@@ -97,7 +97,9 @@
     if (text !== undefined) e.textContent = text;
     return e;
   }
-  function visibleLength(c) { return c.lengthFrom ? Math.max(1, Math.min(c.length, Math.round(raw[c.lengthFrom]))) : c.length; }
+  function sizeKey(c) { var s = PG.size(c, raw); return c.type === 'vector' ? String(s.len) : c.type === 'matrix' ? s.rows + 'x' + s.cols : ''; }
+  /* rebuild every vector/matrix whose size slider changed, whichever control or button changed it */
+  function resized() { controls.forEach(function (c) { if (widgets[c.id] && widgets[c.id].getAttribute('data-size') !== sizeKey(c)) build(c); }); }
   function numInput(c, get, set) {
     var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get() });
     i.addEventListener('input', function () {
@@ -118,11 +120,7 @@
     var row = el('div', { 'class': 'row' });
     if (c.type === 'slider') {
       var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] }), o = el('output', {}, H.fmt(raw[c.id], 4));
-      rg.addEventListener('input', function () {
-        raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4);
-        controls.forEach(function (d) { if (d.lengthFrom === c.id) build(d); });
-        update();
-      });
+      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4); update(); });
       row.appendChild(rg); row.appendChild(o);
     } else if (c.type === 'number') {
       var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
@@ -139,7 +137,7 @@
       sel.addEventListener('change', function () { raw[c.id] = PG.coerce(c, sel.value); update(); });
       row.appendChild(sel);
     } else if (c.type === 'vector') {
-      var len = visibleLength(c), cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
+      var len = PG.size(c, raw).len, cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
         var cell = el('div');
         cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
@@ -148,13 +146,14 @@
       })(i);
       row.appendChild(cells);
     } else if (c.type === 'matrix') {
-      var grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + c.cols + ',auto)' });
-      for (var r = 0; r < c.rows; r++) for (var k = 0; k < c.cols; k++) (function (r, k) {
+      var sz = PG.size(c, raw), grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + sz.cols + ',auto)' });
+      for (var r = 0; r < sz.rows; r++) for (var k = 0; k < sz.cols; k++) (function (r, k) {
         grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }));
       })(r, k);
       row.style.overflowX = 'auto'; row.appendChild(grid);
     }
     w.appendChild(row);
+    w.setAttribute('data-size', sizeKey(c));
   }
   function buildAll() { controls.forEach(build); }
 
@@ -206,6 +205,7 @@
     buildAll(); update();
   }
   function update() {
+    resized();
     var p = PG.params(controls, raw), out = null, msg = '';
     try {
       if (typeof compute !== 'function') throw new Error('the calculation code did not load');

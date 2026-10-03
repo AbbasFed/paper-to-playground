@@ -20,10 +20,20 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
   - e. System prompt: iterative mechanisms get an integer iterations slider; `compute()` runs that many steps.
   - f. `--provider-prefs '<JSON>'` / `P2P_PROVIDER_PREFS` adds OpenRouter provider preferences; off by default.
   - Offline tests: `python -m unittest discover -s tests` (no API calls).
+- **Step 2 – resizing bug.** Root cause: only vectors could be resized (`lengthFrom`), matrices could not, and
+  dependent inputs were rebuilt only when a *slider* moved, so a size typed into a number box (the reported
+  "typing 1" crash in the earlier template) left stale inputs. Fix, generic in the template:
+  `PG.size()` (shared by page and checker) clamps every size to 1..declared; `PG.params()` cuts vectors and
+  matrices (`rowsFrom` / `colsFrom` added); the page keeps full arrays and rebuilds any input whose size changed
+  after *every* update. `checks.py` validates size links, makes size sliders integer with min 1, pads defaults and
+  accepts smaller overrides for linked matrices. New hard check `resize_sweep` (harness): compute + render at every
+  allowed size, 1 included, and exact shapes. Tests: `tests/test_resize.py` (V8 + a Chromium test of the real
+  template that fails on the pre-fix template: matrix stayed 3×3; typed size ignored).
+- Environment: tests run in a Python 3.11 venv (`.venv/`, ignored) with the pinned `requirements.txt` plus
+  dev-only Playwright; the browser test is skipped where Playwright is absent.
 
 ## Next
 
-2. Template: generic vector/matrix resizing (size 1, shrink, grow) and a resize check.
 3. Confirm the "How it works" section renders `content.steps`.
 4. Verify on Python 3.11.
 5. Prove every check in `checks.py` can fail.
@@ -35,5 +45,6 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
 ## Known issues
 
 - Real-model runs need `OPENROUTER_API_KEY` in the environment; it is not set on the machine running this work yet.
+- `examples/attention/out/` was generated before the step 2 template change; regenerate it from a real run.
 - `dev/browser_check.py` was written against an older template; its `SELECTORS` still name that template's ids
   and fall back to heading heuristics on `templates/page.html` (owned by teammates; not changed here).

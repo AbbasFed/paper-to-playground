@@ -2,6 +2,7 @@
 content/grounding checks, and executing the generated JS in an embedded V8 engine."""
 import difflib
 import json
+import math
 import os
 import re
 
@@ -181,6 +182,9 @@ def normalise_controls(spec):
             elif typ == "matrix":
                 n["default"] = [[_tidy(clamp(v)) for v in r] for r in d]
                 n["rows"], n["cols"] = len(d), len(d[0])
+                for k in ("rowsFrom", "colsFrom"):
+                    if c.get(k):
+                        n[k] = str(c[k])
             else:
                 if d is None:
                     d = lo
@@ -214,10 +218,18 @@ def normalise_controls(spec):
         out.append(n)
     sliders = {c["id"] for c in out if c["type"] in ("slider", "number")}
     for c in out:
-        if c.get("lengthFrom") and c["lengthFrom"] not in sliders:
-            notes.append("%s: lengthFrom %r is not a slider id, ignored" % (c["id"], c["lengthFrom"]))
-            del c["lengthFrom"]
+        for k in SIZE_LINKS:
+            if c.get(k) and c[k] not in sliders:
+                notes.append("%s: %s %r is not a slider id, ignored" % (c["id"], k, c[k]))
+                del c[k]
     return out, notes, errors
+
+
+SIZE_LINKS = ("lengthFrom", "rowsFrom", "colsFrom")
+
+
+def _fits(n, size, linked):
+    return 1 <= n <= size if linked else n == size
 
 
 def override_problems(controls, over):
@@ -229,8 +241,10 @@ def override_problems(controls, over):
             out.append("%r is not a control id" % k)
         elif c["type"] == "vector" and not (isinstance(v, list) and (len(v) == c["length"] or (c.get("lengthFrom") and 1 <= len(v) <= c["length"]))):
             out.append("%s must be a list of exactly %d numbers (vector size is fixed%s)" % (k, c["length"], "; %s selects how many are used" % c["lengthFrom"] if c.get("lengthFrom") else ""))
-        elif c["type"] == "matrix" and not (isinstance(v, list) and len(v) == c["rows"] and all(isinstance(r, list) and len(r) == c["cols"] for r in v)):
-            out.append("%s must be exactly %dx%d like its default (matrix size is fixed)" % (k, c["rows"], c["cols"]))
+        elif c["type"] == "matrix" and not (isinstance(v, list) and _fits(len(v), c["rows"], c.get("rowsFrom")) and all(isinstance(r, list) for r in v)
+                                            and len({len(r) for r in v}) == 1 and _fits(len(v[0]), c["cols"], c.get("colsFrom"))):
+            out.append("%s must be %s%dx%d like its default (%s)" % (k, "at most " if c.get("rowsFrom") or c.get("colsFrom") else "exactly ", c["rows"], c["cols"],
+                                                                    "size sliders choose how much is used" if c.get("rowsFrom") or c.get("colsFrom") else "matrix size is fixed"))
         elif c["type"] in ("slider", "number") and not (isinstance(v, (int, float)) and not isinstance(v, bool) and c["min"] <= v <= c["max"]):
             out.append("%s=%r is outside the control range [%s, %s]" % (k, v, c["min"], c["max"]))
         elif c["type"] in ("vector", "matrix"):
@@ -262,18 +276,26 @@ def fit_controls(controls, overrides):
                     notes.append("%s: range widened from [%s, %s] to [%s, %s] to admit a value used in an exploration/test" % (k, c["min"], c["max"], lo, hi))
                     c["min"], c["max"] = lo, hi
     for c in controls:
-        s = by.get(c.get("lengthFrom", ""))
-        if s is not None:
-            want = int(min(12, s["max"]))
-            if s["max"] > 12:
-                s["max"] = 12
-            if s["min"] < 1:
-                s["min"] = 1
-            s["default"] = min(max(s["default"], s["min"]), s["max"])
-            if c["length"] < want:
-                notes.append("%s: default padded from %d to %d entries to match slider %s" % (c["id"], c["length"], want, s["id"]))
-                c["default"] = c["default"] + [c["default"][-1]] * (want - c["length"])
-                c["length"] = want
+        for link, dim, cap in (("lengthFrom", "length", 12), ("rowsFrom", "rows", 8), ("colsFrom", "cols", 8)):
+            s = by.get(c.get(link, ""))
+            if s is None:
+                continue
+            # a size slider counts whole entries from 1 up to what the vector/matrix can hold
+            lo, hi = max(1, int(math.ceil(s["min"]))), int(min(cap, math.floor(s["max"])))
+            if (lo, hi, s["step"]) != (s["min"], s["max"], 1):
+                notes.append("size slider %s set to integers %d..%d" % (s["id"], lo, max(lo, hi)))
+            s["min"], s["max"], s["step"] = lo, max(lo, hi), 1
+            s["default"] = int(round(min(max(s["default"], s["min"]), s["max"])))
+            want = s["max"]
+            if c[dim] < want:
+                notes.append("%s: default padded from %d to %d %s to match slider %s" % (c["id"], c[dim], want, "entries" if dim == "length" else dim, s["id"]))
+                if dim == "length":
+                    c["default"] = c["default"] + [c["default"][-1]] * (want - c[dim])
+                elif dim == "rows":
+                    c["default"] = c["default"] + [list(c["default"][-1]) for _ in range(want - c[dim])]
+                else:
+                    c["default"] = [r + [r[-1]] * (want - c[dim]) for r in c["default"]]
+                c[dim] = want
     return notes
 
 
@@ -481,6 +503,9 @@ def run_js_checks(parts):
             out.append(check("invariant: " + t["name"], False, "invariant (params {}) is false at %s. %s out=%s" % (t["at"], t["error"], t["got"]), ["tests", "compute"]))
     out.append(check("render_defaults", not rep["render"], rep["render"] or "render(defaults) returned an SVG visual", ["render"]))
     out.append(check("render_edges", not rep["renderEdge"], "; ".join(rep["renderEdge"]) if rep["renderEdge"] else "render ran at every extreme setting", ["render", "compute"]))
+    if any(c.get(k) for c in parts["controls"] for k in SIZE_LINKS):
+        out.append(check("resize_sweep", not rep["resize"], "; ".join(rep["resize"]) if rep["resize"] else
+                         "compute and render work at all %d sizes the size sliders allow (1 included)" % rep["resizeSettings"], ["compute", "render", "controls"]))
     return out, rep
 
 

@@ -4,7 +4,7 @@ function __runChecks(spec) {
   'use strict';
   var controls = spec.controls, tests = spec.tests || [], readouts = spec.readouts || [];
   var R = { fatal: null, defaults: null, settings: 0, edgeErrors: [], edgeNaN: [], edgeInf: [], inert: [], tests: [], invariant: [],
-    render: null, renderEdge: [], readoutsMissing: [], outKeys: [] };
+    render: null, renderEdge: [], readoutsMissing: [], outKeys: [], resize: [], resizeSettings: 0 };
 
   function short(v, k) { var s; try { s = JSON.stringify(v); } catch (e) { s = String(v); } s = String(s); return s.length > k ? s.slice(0, k) + '…' : s; }
   function bad(v, path, acc, depth) {
@@ -104,6 +104,35 @@ function __runChecks(spec) {
   });
   R.settings = sweep.length;
   controls.forEach(function (c) { if (!changed[c.id]) R.inert.push(c.id); });
+
+  /* resizing: every vector/matrix tied to a size slider runs at every size that slider allows (1 included);
+     compute() must get exactly that shape, and compute/render must work at each size */
+  var byId = {};
+  controls.forEach(function (c) { byId[c.id] = c; });
+  function resizeFail(m) { if (R.resize.length < 6) R.resize.push(m); }
+  controls.forEach(function (c) {
+    [c.lengthFrom, c.rowsFrom, c.colsFrom].forEach(function (src) {
+      var s = src && byId[src];
+      if (!s || (c.type !== 'vector' && c.type !== 'matrix')) return;
+      for (var n = Math.max(1, Math.ceil(s.min)); n <= Math.floor(s.max) && n <= 16; n++) {
+        var raw = JSON.parse(JSON.stringify(def)), label = src + '=' + n, r;
+        raw[src] = n;
+        try { r = run(raw); } catch (e) { resizeFail('compute threw at ' + label + ': ' + String(e && e.message || e)); continue; }
+        R.resizeSettings++;
+        var got = r.p[c.id], want = PG.size(c, raw);
+        var shapeOk = Array.isArray(got) && (c.type === 'vector' ? got.length === want.len
+          : got.length === want.rows && got.every(function (row) { return Array.isArray(row) && row.length === want.cols; }));
+        if (!shapeOk) resizeFail(c.id + ' was not passed to compute() as ' + (c.type === 'vector' ? want.len + ' entries' : want.rows + 'x' + want.cols) + ' at ' + label);
+        var acc = { nan: [], inf: [] }; bad(r.out, '', acc, 0);
+        if (acc.nan.length) resizeFail('NaN at ' + label + ' in out.' + acc.nan.slice(0, 3).join(', out.'));
+        if (typeof render === 'function') {
+          var m2;
+          try { m2 = draw(r.p, r.out); } catch (e2) { m2 = 'render threw: ' + String(e2 && e2.message || e2); }
+          if (m2) resizeFail('at ' + label + ': ' + m2);
+        }
+      }
+    });
+  });
 
   tests.forEach(function (t) {
     var m = PG.merge(controls, def, t.params || {}), rec = { name: t.name, pass: false, error: '', got: '' };
