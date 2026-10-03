@@ -144,5 +144,53 @@ function __runChecks(spec) {
     } catch (e) { rec.error = 'compute threw: ' + String(e && e.message || e); }
     R.tests.push(rec);
   });
+
+  /* numbers quoted in an exploration's "observe" text must be numbers the calculation really
+     produces at the settings that exploration describes (model prose is otherwise unchecked) */
+  R.explorationNumbers = [];
+  var NUM = /[−-]?\d+\.\d+/g;
+  function toNum(s) { return Number(String(s).replace('−', '-')); }
+  function gather(v, acc, depth) {
+    if (typeof v === 'number' && isFinite(v)) acc.push(Math.abs(v));
+    else if (v && typeof v === 'object' && depth < 4) Object.keys(v).forEach(function (k) { gather(v[k], acc, depth + 1); });
+  }
+  (spec.explorations || []).forEach(function (ex, idx) {
+    var quoted = String(ex.observe || '').replace(/<[^>]+>/g, ' ').match(NUM) || [];
+    if (!quoted.length) return;
+    var base = PG.merge(controls, def, ex.set || {}).raw, states = [base, def], seen = [];
+    /* "set SNR to 20, then to -10": also try each number named in the change text on each numeric control */
+    var named = (String(ex.change || '').replace(/<[^>]+>/g, ' ').match(/[−-]?\d+(?:\.\d+)?/g) || []).map(toNum);
+    controls.forEach(function (c) {
+      if (c.type !== 'slider' && c.type !== 'number') return;
+      named.forEach(function (v) {
+        if (states.length >= 30 || v < c.min || v > c.max) return;
+        var s2 = JSON.parse(JSON.stringify(base)); s2[c.id] = v; states.push(s2);
+      });
+    });
+    /* "... then switch scaling off": every state is also tried with each toggle flipped / each option chosen */
+    controls.forEach(function (c) {
+      var vals = c.type === 'toggle' ? [true, false] : c.type === 'select' ? c.options.map(function (o) { return o.value; }) : [];
+      states.slice().forEach(function (st) {
+        vals.forEach(function (v) {
+          if (states.length >= 90 || st[c.id] === v) return;
+          var s3 = JSON.parse(JSON.stringify(st)); s3[c.id] = v; states.push(s3);
+        });
+      });
+    });
+    var scal = [];
+    states.forEach(function (st, k) {
+      try {
+        var r = run(st); gather(r.out, seen, 0); gather(r.p, seen, 0);
+        if (k === 0) Object.keys(r.out).forEach(function (key) { if (typeof r.out[key] === 'number' && scal.length < 10) scal.push(key + '=' + H.fmt(r.out[key], 4)); });
+      } catch (e) {}
+    });
+    var missing = [];
+    quoted.forEach(function (tok) {
+      var x = Math.abs(toNum(tok)), d = (tok.split('.')[1] || '').length, tol = 0.6 * Math.pow(10, -d);
+      var ok = seen.some(function (v) { return Math.abs(v - x) <= tol || Math.abs(v * 100 - x) <= tol; });   /* also as a percentage */
+      if (!ok && missing.indexOf(tok) < 0) missing.push(tok);
+    });
+    if (missing.length) R.explorationNumbers.push({ index: idx + 1, numbers: missing, computed: scal.join(', ') });
+  });
   return JSON.stringify(R);
 }

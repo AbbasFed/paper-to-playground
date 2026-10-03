@@ -120,7 +120,9 @@ Each check is logged to the trace with pass / fail / warn and a message.
    the model's own `<tests>` (known cases with hand-derivable answers) must be true, and its invariants must hold
    at every swept setting;
    `render` must return an SVG with no `NaN` / `undefined` in it;
-   readout keys must resolve.
+   readout keys must resolve;
+   every decimal number quoted in an exploration's "observe" text must be a value `compute` really produces at the
+   settings that exploration describes (the model's prose is otherwise unverified).
 7. **Final page** – no remote `src`/`href`/`url()`, no `fetch`/`import`/XHR/`<link>`, every inline script parses,
    size under 1 MB, API key absent.
 

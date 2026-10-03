@@ -475,7 +475,9 @@ def run_js_checks(parts):
     if not loaded:
         return out, None
     ctx.eval(read_template("harness.js"))
-    spec = {"controls": parts["controls"], "tests": parts["tests"], "readouts": parts["readouts"]}
+    spec = {"controls": parts["controls"], "tests": parts["tests"], "readouts": parts["readouts"],
+            "explorations": [{"set": e.get("set") or {}, "observe": e.get("observe", ""), "change": e.get("change", "")}
+                             for e in parts.get("content", {}).get("explorations", [])]}
     try:
         rep = json.loads(ctx.eval("__runChecks(%s)" % json.dumps(spec), timeout_sec=15))
     except Exception as e:  # noqa: BLE001
@@ -506,6 +508,11 @@ def run_js_checks(parts):
     if any(c.get(k) for c in parts["controls"] for k in SIZE_LINKS):
         out.append(check("resize_sweep", not rep["resize"], "; ".join(rep["resize"]) if rep["resize"] else
                          "compute and render work at all %d sizes the size sliders allow (1 included)" % rep["resizeSettings"], ["compute", "render", "controls"]))
+    wrong = rep.get("explorationNumbers") or []
+    out.append(check("exploration_numbers", not wrong,
+                     "; ".join("exploration %d 'observe' quotes %s, which compute() does not produce at that exploration's settings (it gives %s). Correct the numbers in the text"
+                               % (w["index"], ", ".join(w["numbers"]), w["computed"] or "no scalar outputs") for w in wrong)
+                     if wrong else "numbers quoted in the explorations match the calculation", ["content"]))
     return out, rep
 
 
