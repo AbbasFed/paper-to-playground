@@ -55,7 +55,7 @@ def build_html(parts, case):
             i + 1, inline_html(e["title"]) if e.get("title") else "Try this", inline_html(e["change"]), inline_html(e["observe"]), inline_html(e["why"]), btn))
     explorations = '<div class="cards">%s</div>' % "".join(cards)
 
-    quotes = "".join("<blockquote>“%s”</blockquote>" % esc(q.strip(' "“”')) for q in c["quotes"])
+    quotes = "".join("<blockquote>“%s”</blockquote>" % inline_html(re.sub(r"</?(?:sub|sup)>", "", q.strip(' "“”'))) for q in c["quotes"])
     src = '<p class="lead"><b>%s</b>%s</p>' % (esc(c["paper"] or "Source paper"), "".join(", " + esc(x) for x in (c["section"], c["equation"]) if x))
     if case.get("source_url"):
         src += '<p class="muted small mono">%s</p>' % esc(case["source_url"])

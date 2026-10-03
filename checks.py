@@ -277,13 +277,50 @@ def fit_controls(controls, overrides):
     return notes
 
 
+GREEK = {"alpha": "\u03b1", "beta": "\u03b2", "gamma": "\u03b3", "delta": "\u03b4", "epsilon": "\u03b5", "varepsilon": "\u03b5",
+         "theta": "\u03b8", "lambda": "\u03bb", "mu": "\u03bc", "sigma": "\u03c3", "tau": "\u03c4", "phi": "\u03c6", "pi": "\u03c0",
+         "rho": "\u03c1", "eta": "\u03b7", "omega": "\u03c9", "nabla": "\u2207", "partial": "\u2202", "infty": "\u221e", "sum": "\u03a3",
+         "prod": "\u03a0", "cdot": "\u00b7", "times": "\u00d7", "leq": "\u2264", "le": "\u2264", "geq": "\u2265", "ge": "\u2265",
+         "neq": "\u2260", "approx": "\u2248", "sim": "\u223c", "in": "\u2208", "odot": "\u2299", "leftarrow": "\u2190",
+         "rightarrow": "\u2192", "to": "\u2192", "pm": "\u00b1", "top": "T", "ldots": "...", "dots": "...", "cdots": "..."}
+
+
+def delatex(s):
+    """Models (and fetched paper HTML) leak LaTeX; turn the common constructs into plain Unicode/HTML-ready text."""
+    if "\\" not in s and "$" not in s:
+        return s
+    for cmd, mark in (("hat", "\u0302"), ("tilde", "\u0303"), ("bar", "\u0304")):   # keep accents: \hat{m} -> m̂
+        s = re.sub(r"\\%s\s*\{([^{}])([^{}]*)\}" % cmd, lambda m, k=mark: m.group(1) + k + m.group(2), s)
+    for _ in range(3):   # nested braces
+        s = re.sub(r"\\(?:frac|dfrac|tfrac)\s*\{([^{}]*)\}\s*\{([^{}]*)\}", r"(\1)/(\2)", s)
+        s = re.sub(r"\\sqrt\s*\{([^{}]*)\}", "\u221a(\\1)", s)
+        s = re.sub(r"\\(?:text|mathrm|mathbf|mathit|mathcal|operatorname|boldsymbol|hat|tilde|bar)\s*\{([^{}]*)\}", r"\1", s)
+    s = re.sub(r"\\sqrt\s*", "\u221a", s)
+    s = re.sub(r"\\(?:left|right|,|;|!|quad|qquad|displaystyle)\b|\\[,;! ]", " ", s)
+    s = re.sub(r"\\([A-Za-z]+)", lambda m: GREEK.get(m.group(1), GREEK.get(m.group(1).lower(), m.group(0))), s)
+    s = re.sub(r"\\[(\[)\]]", "", s)
+    s = re.sub(r"\$([^$\n]{1,120})\$", r"\1", s)
+    return re.sub(r"[ \t]{2,}", " ", s)
+
+
 def _strs(v):
     if isinstance(v, str):
         v = [v]
     return [str(x).strip() for x in (v if isinstance(v, list) else []) if isinstance(x, (str, int, float)) and str(x).strip()]
 
 
+def _delatex_deep(v):
+    if isinstance(v, str):
+        return delatex(v)
+    if isinstance(v, list):
+        return [_delatex_deep(x) for x in v]
+    if isinstance(v, dict):
+        return {k: (x if k in ("set", "quotes") else _delatex_deep(x)) for k, x in v.items()}
+    return v
+
+
 def normalise_content(c):
+    c = _delatex_deep(c)
     g = lambda k, *alts: next((str(c[x]).strip() for x in (k,) + alts if isinstance(c.get(x), (str, int, float)) and str(c[x]).strip()), "")
     syms = []
     raw = c.get("symbols")
@@ -452,7 +489,7 @@ def evaluate(tags, excerpt):
         if not content["simplifications"]:
             gaps.append("needs at least 1 simplification")
         checks.append(check("content_complete", not gaps, "; ".join(gaps) if gaps else "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", ["content"]))
-        blob = json.dumps(parsed["content"], ensure_ascii=False)
+        blob = json.dumps({k: v for k, v in content.items() if k != "quotes"}, ensure_ascii=False)
         m = LATEX_RE.search(blob.replace("\\\\", "\\"))
         checks.append(check("content_no_latex", not m, ("content contains LaTeX markup %r; use HTML <sub>/<sup> and Unicode" % m.group(0)) if m else "no LaTeX markup", ["content"]))
         # grounding

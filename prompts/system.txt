@@ -24,7 +24,7 @@ Text may use only <b> <i> <sub> <sup> <code> and Unicode math (√ Σ · ≤ α 
  {"type":"select","id","label","options":["a","b"],"default":"a"}
  {"type":"vector","id","label","default":[..],"min","max","step"}  optional "lengthFrom":"<slider id>": default has as many entries as that slider's max; only the first n are shown and passed
  {"type":"matrix","id","label","default":[[..],[..]],"min","max","step"}
-ids are JS identifiers. Vectors up to 6 entries, matrices up to 4x4. Sizes are fixed: wherever you override a vector or matrix ("set", "params") give it in exactly its default shape, and keep every value inside the control range.</controls>
+ids are JS identifiers. Vectors up to 6 entries, matrices up to 4x4. Sizes are fixed: wherever you override a vector or matrix ("set", "params") give it in exactly its default shape (a 2x3 default needs 2 rows of 3 everywhere; [[1,1]] would be rejected), and keep every value inside the control range.</controls>
 
 <compute>function compute(p) { ... return {...}; }
 p = {controlId: value} (number | boolean | string | number[] | number[][]). Pure and deterministic. Return the final result AND every intermediate value under descriptive keys (numbers, arrays, matrices only).</compute>

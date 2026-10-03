@@ -20,6 +20,7 @@ class Budget:
         self.prompt_tokens = 0
         self.completion_tokens = 0
         self.reasoning_tokens = 0
+        self.unverified_tokens = 0    # max_tokens of calls that returned no usage (assumed spent)
 
     def elapsed(self):
         return time.monotonic() - self.t0
@@ -28,7 +29,7 @@ class Budget:
         return DEADLINE_S - self.elapsed()
 
     def tokens_left(self):
-        return MAX_COMPLETION_TOKENS - TOKEN_MARGIN - self.completion_tokens
+        return MAX_COMPLETION_TOKENS - TOKEN_MARGIN - self.completion_tokens - self.unverified_tokens
 
     def allow(self, min_tokens=1200, min_time=20.0):
         """Return '' if another request fits in the budget, else the reason it does not."""
@@ -43,6 +44,7 @@ class Budget:
     def summary(self):
         return {"requests": self.requests, "prompt_tokens": self.prompt_tokens, "completion_tokens": self.completion_tokens,
                 "reasoning_tokens": self.reasoning_tokens, "total_tokens": self.prompt_tokens + self.completion_tokens,
+                "unverified_completion_reserve": self.unverified_tokens,
                 "elapsed_s": round(self.elapsed(), 2)}
 
 
@@ -89,6 +91,8 @@ def chat(model, messages, max_tokens, budget, trace, stage, temperature=0.3, rea
         budget.prompt_tokens += pt
         budget.completion_tokens += ct
         budget.reasoning_tokens += rt
+        if not usage and status in (None, 200):
+            budget.unverified_tokens += cap
         info = {"request_no": budget.requests, "attempt": attempt + 1, "model": model, "max_tokens": cap, "http_status": status,
                 "generation_id": data.get("id"), "prompt_tokens": pt, "completion_tokens": ct, "reasoning_tokens": rt, "elapsed_s": elapsed}
 

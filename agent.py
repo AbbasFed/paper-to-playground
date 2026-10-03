@@ -47,7 +47,7 @@ def flatten(case):
 def find_excerpt(fields):
     low = {k.lower().split(".")[-1]: k for k in fields}
     for name in EXCERPT_KEYS:
-        if name in low and len(fields[low[name]].strip()) >= 200:
+        if name in low and len(fields[low[name]].strip()) >= 40:
             return low[name], "field name"
     rest = [(len(v.strip()), k) for k, v in fields.items() if not any(w in k.lower() for w in NOT_EXCERPT)]
     rest = sorted(r for r in rest if r[0] >= 200)
@@ -65,11 +65,19 @@ def fetch_source(url):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def trim(text):
+def trim(text, hint=""):
+    """Keep the excerpt to a sane size. An over-long text (e.g. a whole fetched paper) is cut to the
+    window that mentions the brief's own terms most often, so the requested section survives."""
     if len(text) <= MAX_EXCERPT_CHARS:
         return text
-    head = int(MAX_EXCERPT_CHARS * 0.75)
-    return text[:head] + "\n[... excerpt shortened ...]\n" + text[-(MAX_EXCERPT_CHARS - head):]
+    words = {w for w in re.findall(r"[a-z][a-z-]{4,}", hint.lower())}
+    low, best, best_score = text.lower(), 0, -1
+    for start in range(0, len(text) - MAX_EXCERPT_CHARS + 1, 1000):
+        chunk = low[start:start + MAX_EXCERPT_CHARS]
+        score = sum(min(chunk.count(w), 5) for w in words)
+        if score > best_score:
+            best, best_score = start, score
+    return ("[...] " if best else "") + text[best:best + MAX_EXCERPT_CHARS] + " [...]"
 
 
 def user_message(fields, ex_key, excerpt):
@@ -122,12 +130,13 @@ def run(args, trace, key, budget):
         case = json.load(f)
     fields = flatten(case)
     ex_key, how = find_excerpt(fields)
-    excerpt = trim(fields[ex_key]) if ex_key else ""
+    hint = " ".join(v for k, v in fields.items() if k != ex_key and not v.startswith("http"))
+    excerpt = trim(fields[ex_key], hint) if ex_key else ""
     trace.event("prepare", "parse_case", "ok", fields={k: len(v) for k, v in fields.items()})
     url = next((v for k, v in fields.items() if "url" in k.lower() and v.startswith("http")), "")
     if not excerpt and url:
         try:
-            excerpt = trim(fetch_source(url))
+            excerpt = trim(fetch_source(url), hint)
             trace.event("prepare", "fetch_source_url", "ok" if excerpt else "empty", chars=len(excerpt))
         except Exception as e:  # noqa: BLE001 - offline assessment: just continue without it
             trace.event("prepare", "fetch_source_url", "failed", error=type(e).__name__)
@@ -155,6 +164,8 @@ def run(args, trace, key, budget):
         trace.event("generate", "parse_tags", "ok" if len(tags) >= 4 else "failed", tags_found=sorted(tags), finish_reason=resp["finish_reason"])
         if args.debug:
             write(os.path.join(args.output, "debug_generate_%d.txt" % (attempt + 1)), resp["text"])
+        if tags.get("plan"):
+            trace.event("plan", "explanation_plan", "ok", plan=re.sub(r"\s+", " ", tags["plan"])[:700])
         if len(tags) >= 4:
             break
         trace.event("generate", "revision", "regenerate", reason="reply did not follow the tag contract")

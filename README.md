@@ -34,7 +34,9 @@ Optional flags: `--reasoning {off,low,medium,high,auto}` (default `off`, see "To
 `case.json` is a UTF-8 JSON object. No field name is hard-coded: every field is passed to the model labelled by
 its key. The excerpt is found by name (`excerpt`, `text`, `section`, `content`, ...) or, failing that, as the
 longest text field. Only if a case has no excerpt at all does the agent try `source_url` once, with a 3 second
-timeout, and it carries on without it if that fails. Quotes are then omitted because they cannot be verified.
+timeout; a long fetched paper is cut to the part that best matches the brief. If the fetch fails (as it will when
+network access is limited to OpenRouter) the agent carries on from the brief alone, and quotes are omitted because
+they cannot be verified.
 
 ## Architecture
 
@@ -89,7 +91,8 @@ Each check is logged to the trace with pass / fail / warn and a message.
 
 1. **Structure** – all tags present; JSON tags parse (tolerant of code fences, trailing commas and wrong closing tags).
 2. **Content** – idea, why, formula, at least 2 symbols, steps, exactly 2 explorations each with change / observe / why,
-   a limitation, section and equation, at least 1 simplification; no LaTeX markup.
+   a limitation, section and equation, at least 1 simplification; leaked LaTeX is converted to Unicode/HTML, and any
+   that remains fails the check.
 3. **Grounding** – every quote must occur in the excerpt (whitespace- and case-normalised, fuzzy match >= 0.9).
    Unmatched quotes are dropped; if none survive the check fails and is repaired.
 4. **Controls** – at least 2 valid controls, unique ids, defaults inside ranges; exploration and test settings must fit the controls.
@@ -128,7 +131,9 @@ Enforced in `llm.py` by a single `Budget` object consulted before every HTTP att
 | 10 API requests incl. retries | every HTTP attempt increments the counter; no call is made at 10 |
 | 30,000 completion tokens | `max_tokens` is set on every call to `min(planned, remaining - 500)`; planned is 9000 (generate) and 5000 (repair) |
 
-Retries (429, 5xx, timeouts, empty replies) use a short backoff and count toward the request cap. Typical use
+Retries (429, 5xx, timeouts, empty replies) use a short backoff and count toward the request cap. A call that
+returns no usage (a timeout or dropped connection) is assumed to have spent its whole `max_tokens`, so the
+completion-token cap holds even in the worst case. Typical use
 is 1 to 2 requests and roughly 5k to 9k total tokens per case.
 
 **Token efficiency.** Reasoning is disabled by default (`"reasoning": {"enabled": false}`). Measured on the
@@ -151,9 +156,10 @@ reasoning setting, the call is retried without it.
  "prompt_tokens": ..., "completion_tokens": ..., "total_tokens": ..., "elapsed_s": ..., "checks_run": 26, "checks_passed": 26}
 ```
 
-Every event has `t` (seconds since start), `stage` (`start`, `prepare`, `generate`, `check`, `repair`,
+Every event has `t` (seconds since start), `stage` (`start`, `prepare`, `generate`, `plan`, `check`, `repair`,
 `assemble`, `done`, `error`), `action` and `result`. LLM events carry token counts, latency and the OpenRouter
-generation id; check events carry pass/fail and a message; repair events record which tags were revised and why.
+generation id; the `plan` event records the model's stated plan for the explanation (its `<plan>` tag); check events
+carry pass/fail and a message; repair events record which tags were revised and why.
 The trace never contains the API key (lines are scrubbed as a second line of defence), request headers, or any
 model reasoning text.
 
