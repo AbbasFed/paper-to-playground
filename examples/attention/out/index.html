@@ -234,6 +234,27 @@ footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
   .formula { font-size: 1.12rem; }
 }
 
+/* exact-value boxes, input notes, pinned comparison, exploration banner */
+.ctl input.sl-num { flex: none; width: 5.2em; }
+.ctl-note { margin-top: 6px; font-size: 0.8rem; color: var(--bad); line-height: 1.35; }
+#pg-pin { width: 100%; margin-top: 8px; }
+#pg-pin[aria-pressed=true] { background: var(--soft); }
+.delta { display: block; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+button.try.ghost { color: var(--primary); background: #fff; margin-left: 6px; }
+button.try.ghost:hover { background: var(--soft); }
+.xb { border: 1.5px solid var(--primary); border-left-width: 6px; border-radius: 10px; background: var(--soft-2); padding: 14px 16px; margin: 0 0 16px; }
+.xb p { margin: 6px 0; }
+.xb-top { display: flex; align-items: center; gap: 10px; }
+.xb-top b { flex: 1; }
+.xb-k { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary); }
+.xb-x { border: 0; background: transparent; font-size: 1.2rem; line-height: 1; padding: 2px 8px; }
+.xb-states { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.xb-states button[aria-pressed=true] { color: #fff; background: var(--primary); }
+.xb-cmp { width: 100%; margin-top: 6px; font-size: 0.9rem; }
+.xb-cmp th, .xb-cmp td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
+.xb-cmp td.val, .xb-cmp th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.xb-ok { color: var(--good); font-weight: 600; font-size: 0.9rem; }
+
 </style>
 </head>
 <body>
@@ -252,27 +273,27 @@ footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
 <div class="actions"><a class="btn" href="#playground">Open the playground</a><a class="btn ghost" href="#grounding">See the source</a></div>
     </div>
     <div>
-<div class="hero-card"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula long"><span class="eq">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</span></div><p class="muted small" style="margin:10px 0 0;text-align:center">Attention Is All You Need · §3.2.1 · Eq. (1)</p><div class="badge"><b>6</b> live checks<br>on the calculation</div></div>
+<div class="hero-card"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula long"><span class="eq">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</span></div><p class="muted small" style="margin:10px 0 0;text-align:center">Attention Is All You Need · §3.2.1 · Eq. (1)</p><div class="badge"><b>5</b> live checks<br>on the calculation</div></div>
     </div>
   </div>
   <div class="wrap">
-<div class="stats"><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><div><b>5</b><span>interactive controls</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><div><b>7</b><span>live computed values</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></span><div><b>6</b><span>live checks</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></span><div><b>2</b><span>guided explorations</span></div></div></div>
+<div class="stats"><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><div><b>5</b><span>interactive controls</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><div><b>7</b><span>live computed values</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></span><div><b>5</b><span>live checks</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></span><div><b>2</b><span>guided explorations</span></div></div></div>
   </div>
 </header>
 <main>
 <section id="idea"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Start here</span><h2>The <span class="hl">idea</span></h2><p>What the paper proposes, in plain words, and why it matters.</p></div>
-<div class="idea-grid"><div><p class="lead">A query asks a question; every key is compared with it by a dot product, and the resulting score says how relevant that key's value is. Dividing the scores by √d<sub>k</sub> keeps them from growing with dimension, and softmax turns them into weights that sum to 1. The output is just the weighted average of the value rows.</p></div><p class="why"><b>Why it matters</b>This single equation is the core of the transformer: it lets each position gather information from all others, and the 1/√d<sub>k</sub> factor is what keeps the softmax from saturating when d<sub>k</sub> is large.</p></div>
+<div class="idea-grid"><div><p class="lead">Attention lets each query look at every key and decide how much of each value to copy. The query and key vectors are compared with a dot product; dividing by √d<sub>k</sub> keeps those scores from growing with dimension, and a softmax turns the scores into weights that sum to one. The output for each query is then the weighted average of the value rows.</p></div><p class="why"><b>Why it matters</b>This single equation is the core of the transformer: it is how every token gathers information from every other token, and the 1/√d<sub>k</sub> factor is what keeps that gathering trainable at large dimensions.</p></div>
 </div></section>
 
 <section id="symbols" class="band"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Notation</span><h2><span class="hl">Symbols</span> used on this page</h2><p>Every symbol, written the way the paper writes it.</p></div>
-<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym"><span>Q</span></td><td>matrix of queries, one row per query, d<sub>k</sub> columns</td></tr><tr><td class="sym"><span>K</span></td><td>matrix of keys, one row per key, d<sub>k</sub> columns</td></tr><tr><td class="sym"><span>V</span></td><td>matrix of values, one row per key, d<sub>v</sub> columns</td></tr><tr><td class="sym"><span>d<sub>k</sub></span></td><td>dimension of each query and key vector</td></tr><tr><td class="sym"><span>d<sub>v</sub></span></td><td>dimension of each value vector</td></tr><tr><td class="sym"><span>QK<sup>T</sup></span></td><td>matrix of raw dot-product scores, entry (i,j) = q<sub>i</sub> · k<sub>j</sub></td></tr><tr><td class="sym"><span>softmax</span></td><td>applied to each row of scores, giving weights that are positive and sum to 1</td></tr></tbody></table>
+<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym"><span>Q</span></td><td>matrix of queries, one row per query, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>K</span></td><td>matrix of keys, one row per key, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>V</span></td><td>matrix of values, one row per key, each of dimension d<sub>v</sub></td></tr><tr><td class="sym"><span>d<sub>k</sub></span></td><td>dimension of the queries and keys (number of columns of Q and K)</td></tr><tr><td class="sym"><span>d<sub>v</sub></span></td><td>dimension of the values (number of columns of V)</td></tr><tr><td class="sym"><span>QK<sup>T</sup></span></td><td>matrix of raw dot-product scores, entry (i, j) = q<sub>i</sub> · k<sub>j</sub></td></tr><tr><td class="sym"><span>softmax</span></td><td>applied to each row of scores, turning them into non-negative weights that sum to 1</td></tr></tbody></table>
 </div></section>
 
 <section id="how"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Mechanism</span><h2><span class="hl">How it works</span></h2><p>The calculation, one step at a time.</p></div>
-<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: each entry is a dot product of one query with one key.</li><li>Divide every score by √d<sub>k</sub> to get the scaled scores (skip this if scaling is off).</li><li>Apply softmax to each row of scores, giving non-negative weights that sum to 1 per row.</li><li>Multiply the weight matrix by V: each output row is the weighted sum of the rows of V.</li></ol>
+<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: each entry is the dot product of one query with one key.</li><li>Divide every score by √d<sub>k</sub> (the scaling toggle switches this off).</li><li>Apply softmax to each row of scores to get attention weights that sum to 1.</li><li>Multiply the weights by V: each output row is the weighted sum of the rows of V.</li></ol>
 </div></section>
 
 <section id="playground" class="band"><div class="wrap">
@@ -282,11 +303,13 @@ footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
     <p class="kicker">Controls</p>
     <div id="pg-controls"></div>
     <button type="button" id="pg-reset">Reset to defaults</button>
+    <button type="button" id="pg-pin" aria-pressed="false">Pin current values to compare</button>
   </aside>
   <div class="stage">
+    <div id="pg-xb" class="xb" hidden aria-live="polite"></div>
     <div id="pg-error" class="err" hidden></div>
     <div id="pg-warn" class="warn" role="status" hidden></div>
-    <div id="pg-tiles" class="tiles"></div>
+    <div id="pg-tiles" class="tiles" aria-live="polite"></div>
     <div id="pg-visual"></div>
     <div id="pg-sweep-wrap" hidden>
       <div class="sub-head">
@@ -312,27 +335,27 @@ footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
 
 <section id="explore"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Try it yourself</span><h2>Guided <span class="hl">explorations</span></h2><p>Two short experiments: what to change, what to watch, and why it happens.</p></div>
-<div class="cards"><div class="card"><h3><small>Exploration 1</small>Equal scores: a uniform average</h3><dl><dt>Change</dt><dd>Set the scaling toggle off and make all keys identical, so every raw score is the same.</dd><dt>Observe</dt><dd>All weights in a row become 1/n and the output row is the plain average of the rows of V.</dd><dt>Why</dt><dd>Softmax of a constant vector is uniform, so with equal scores every value gets the same weight regardless of scaling.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;scaling&quot;: false, &quot;d_k&quot;: 2, &quot;Q&quot;: [[1, 0], [0, 1]], &quot;K&quot;: [[1, 0], [1, 0], [1, 0]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]]}">Try it in the playground &#9654;</button></p></div><div class="card"><h3><small>Exploration 2</small>One dominant score: scaling matters</h3><dl><dt>Change</dt><dd>Set scaling off, then on, with one key much better aligned with the query.</dd><dt>Observe</dt><dd>Without scaling the winning weight is near 1 and the output collapses onto one row of V; with scaling the weights stay softer and the output mixes the values.</dd><dt>Why</dt><dd>Dividing by √d<sub>k</sub> shrinks large dot products, so softmax stays in a region with usable gradients instead of saturating.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;scaling&quot;: true, &quot;d_k&quot;: 4, &quot;Q&quot;: [[2, 2, 2, 2], [0, 1, 0, 0]], &quot;K&quot;: [[2, 2, 2, 2], [0, 0, 0, 0], [0, 0, 0, 0]], &quot;V&quot;: [[1, 0], [0, 1], [1, 1]]}">Try it in the playground &#9654;</button></p></div></div>
+<div class="cards"><div class="card"><h3><small>Exploration 1</small>Equal scores give a uniform average</h3><dl><dt>Change</dt><dd>Set Q and K so every query–key dot product is the same, then compare the weights with and without scaling.</dd><dt>Observe</dt><dd>Every weight becomes 1/n, so each output row is the plain average of the rows of V — and this is unchanged by the scaling toggle.</dd><dt>Why</dt><dd>Softmax of a constant vector is uniform regardless of the constant, so dividing by √d<sub>k</sub> cannot change equal scores.</dd></dl><p style="margin:0"><button type="button" class="try" data-ex="0" data-state="a">1 · Set it up &#9654;</button> <button type="button" class="try ghost" data-ex="0" data-state="b">2 · Then set Divide scores by √dk off &#9654;</button></p></div><div class="card"><h3><small>Exploration 2</small>One dominant score sharpens the weights</h3><dl><dt>Change</dt><dd>Make one key align strongly with the query and turn scaling off, then turn it back on.</dd><dt>Observe</dt><dd>Without scaling the softmax saturates: the top weight jumps toward 1 and the output collapses onto that value row; with scaling the weights stay softer.</dd><dt>Why</dt><dd>The raw dot product grows with d<sub>k</sub>, and a large score makes softmax put almost all mass on the largest entry; dividing by √d<sub>k</sub> shrinks the gap between scores.</dd></dl><p style="margin:0"><button type="button" class="try" data-ex="1" data-state="a">1 · Set it up &#9654;</button> <button type="button" class="try ghost" data-ex="1" data-state="b">2 · Then set Divide scores by √dk on &#9654;</button></p></div></div>
 </div></section>
 
 <section id="limitation" class="band"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Keep in mind</span><h2>A <span class="hl">limitation</span> to remember</h2><p>Where this explanation stops being true.</p></div>
 <div class="limit-box">
-<p>The scaling factor only matters when the dot products are large relative to √d<sub>k</sub>; for small d<sub>k</sub> and small entries, scaled and unscaled attention give nearly the same weights.</p>
+<p>The demo uses tiny hand-entered matrices, so it shows the mechanism, not the paper's trained models or its experiments; the excerpt's claim that scaling matters more at large d<sub>k</sub> is only visible here as a trend, not as a measured result.</p>
 </div>
 </div></section>
 
 <section id="grounding"><div class="wrap">
 <div class="sec-head"><span class="eyebrow">Source</span><h2>Source <span class="hl">grounding</span></h2><p>What comes from the paper, and what is our own example.</p></div>
 <div class="ground">
-<p class="lead"><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula long"><span class="eq">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</span></div><blockquote>“We compute the dot products of the query with all keys, divide each by √d<sub>k</sub>, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Dot-product attention is identical to our algorithm, except for the scaling factor of 1/√d<sub>k</sub>.”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d<sub>k</sub>.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>The demo uses tiny hand-editable Q, K and V matrices instead of learned projections; the paper's real inputs come from linear layers.</li><li>Only one or two query rows are used, so the batch and multi-head structure of the paper is omitted.</li><li>The d<sub>k</sub> slider changes how many columns of Q and K are used; the paper fixes d<sub>k</sub> per head.</li><li>No masking, dropout or positional encoding is applied.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
+<p class="lead"><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula long"><span class="eq">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</span></div><blockquote>“We compute the dot products of the query with all keys, divide each by √d<sub>k</sub>, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Dot-product attention is identical to our algorithm, except for the scaling factor of 1/√d<sub>k</sub>.”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d<sub>k</sub>.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>Q, K and V are small editable matrices with toy integer entries, not learned projections.</li><li>The scaling toggle replaces the paper's fixed 1/√d<sub>k</sub> with either 1/√d<sub>k</sub> or 1, so the learner can see the difference.</li><li>No masking, multi-head splitting, dropout or positional encoding is included; only the single-head equation is shown.</li><li>The 'large d<sub>k</sub>' effect is illustrated by the size of the entries the learner types, not by retraining a model.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
 </div>
 </div></section>
 </main>
 <footer><div class="wrap"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABkCAYAAAA8AQ3AAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDcuMi1jMDAwIDc5LjU2NmViYzViNCwgMjAyMi8wNS8wOS0wODoyNTo1NSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDIzLjQgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjY1ODFGQ0M2MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjY1ODFGQ0M3MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6NjU4MUZDQzQyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6NjU4MUZDQzUyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6mcWE0AAA6O0lEQVR42uyd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" alt="American University of Beirut">
 <p>All values computed live in your browser. This page works offline and loads nothing from the network.</p></div></footer>
 
-<script type="application/json" id="pg-data">{"controls": [{"id": "Q", "type": "matrix", "label": "Queries Q (rows = queries, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0, 0, 0], [0, 1, 0, 0]], "rows": 2, "cols": 4, "colsFrom": "d_k", "min": -3, "max": 3, "step": 0.5}, {"id": "K", "type": "matrix", "label": "Keys K (rows = keys, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0, 0, 0], [0, 1, 0, 0], [1, 1, 0, 0]], "rows": 3, "cols": 4, "colsFrom": "d_k", "min": -3, "max": 3, "step": 0.5}, {"id": "V", "type": "matrix", "label": "Values V (rows = keys, cols = d\u003csub>v\u003c/sub>)", "default": [[1, 0], [0, 1], [1, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "d_k", "type": "slider", "label": "d\u003csub>k\u003c/sub> (query/key dimension)", "default": 2, "min": 1, "max": 4, "step": 1}, {"id": "scaling", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}], "readouts": [{"key": "scale", "label": "scaling factor 1/√d\u003csub>k\u003c/sub> (1 if off)", "digits": 3, "unit": ""}, {"key": "scores", "label": "raw scores QKᵀ", "digits": 3, "unit": ""}, {"key": "scaled", "label": "scaled scores", "digits": 3, "unit": ""}, {"key": "weights", "label": "softmax weights", "digits": 3, "unit": ""}, {"key": "rowSums", "label": "weight row sums", "digits": 3, "unit": ""}, {"key": "output", "label": "output = weights · V", "digits": 3, "unit": ""}, {"key": "maxWeight", "label": "largest weight", "digits": 3, "unit": ""}], "tests": [{"name": "each weight row sums to 1", "params": {}, "expect": "out.rowSums.every(s => Math.abs(s - 1) \u003c 1e-9)"}, {"name": "output is the weighted sum of the rows of V", "params": {}, "expect": "out.output.every((row, i) => row.every((val, c) => Math.abs(val - out.weights[i].reduce((a, w, j) => a + w * out.V[j][c], 0)) \u003c 1e-9))"}, {"name": "all weights are non-negative", "params": {}, "expect": "out.weights.every(r => r.every(w => w >= 0))"}, {"name": "scaling off leaves raw scores unchanged", "params": {"scaling": false, "d_k": 2}, "expect": "Math.abs(out.scale - 1) \u003c 1e-12 && out.scaled.every((r, i) => r.every((v, j) => Math.abs(v - out.scores[i][j]) \u003c 1e-12))"}, {"name": "d\u003csub>k\u003c/sub> = 4 with scaling gives factor 0.5", "params": {"scaling": true, "d_k": 4}, "expect": "Math.abs(out.scale - 0.5) \u003c 1e-12"}, {"name": "equal keys give uniform weights", "params": {"scaling": true, "d_k": 2, "K": [[1, 0], [1, 0], [1, 0]], "Q": [[1, 0], [0, 1]]}, "expect": "out.weights.every(r => r.every(w => Math.abs(w - 1/3) \u003c 1e-9))"}]}</script>
+<script type="application/json" id="pg-data">{"controls": [{"id": "Q", "type": "matrix", "label": "Queries Q (rows = queries, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0], [0, 1]], "rows": 2, "cols": 2, "min": -4, "max": 4, "step": 1}, {"id": "K", "type": "matrix", "label": "Keys K (rows = keys, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0], [0, 1]], "rows": 2, "cols": 2, "min": -4, "max": 4, "step": 1}, {"id": "V", "type": "matrix", "label": "Values V (rows = keys, cols = d\u003csub>v\u003c/sub>)", "default": [[1, 0], [0, 1]], "rows": 2, "cols": 2, "min": -4, "max": 4, "step": 1}, {"id": "scale", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}, {"id": "gain", "type": "slider", "label": "Score gain (multiplies the scores)", "default": 1, "min": 0.5, "max": 4, "step": 0.5}], "readouts": [{"key": "dk", "label": "d\u003csub>k\u003c/sub> (query/key dimension)", "digits": 0, "unit": ""}, {"key": "denom", "label": "divisor applied to scores", "digits": 3, "unit": ""}, {"key": "scores", "label": "raw scores QKᵀ", "digits": 2, "unit": ""}, {"key": "scaled", "label": "scaled scores", "digits": 3, "unit": ""}, {"key": "w", "label": "attention weights", "digits": 3, "unit": ""}, {"key": "rowSums", "label": "weight row sums", "digits": 3, "unit": ""}, {"key": "out", "label": "output", "digits": 3, "unit": ""}], "tests": [{"name": "weight rows sum to 1", "params": {}, "expect": "out.rowSums.every(s => Math.abs(s - 1) \u003c 1e-9)"}, {"name": "output is the weighted sum of V rows", "params": {}, "expect": "out.out.every((row, i) => row.every((val, c) => Math.abs(val - out.w[i].reduce((a, wij, j) => a + wij * out.V[j][c], 0)) \u003c 1e-9))"}, {"name": "weights are non-negative", "params": {}, "expect": "out.w.every(r => r.every(x => x >= 0 && x \u003c= 1))"}, {"name": "equal scores give uniform weights regardless of scaling", "params": {"Q": [[1, 0], [1, 0]], "K": [[1, 0], [1, 0]], "V": [[1, 0], [0, 1]], "scale": false, "gain": 1}, "expect": "Math.abs(out.w[0][0] - 0.5) \u003c 1e-9 && Math.abs(out.out[0][0] - 0.5) \u003c 1e-9"}, {"name": "scaling softens a dominant score", "params": {"Q": [[3, 3], [0, 1]], "K": [[3, 3], [0, 0]], "V": [[1, 0], [0, 1]], "scale": false, "gain": 1}, "expect": "out.w[0][0] > 0.99"}], "explorations": [{"title": "Equal scores give a uniform average", "observe": "Every weight becomes 1/n, so each output row is the plain average of the rows of V — and this is unchanged by the scaling toggle.", "set": {"Q": [[1, 0], [1, 0]], "K": [[1, 0], [1, 0]], "V": [[1, 0], [0, 1]], "scale": true}, "then": {"scale": false}, "thenText": "set Divide scores by √dk off", "verified": true}, {"title": "One dominant score sharpens the weights", "observe": "Without scaling the softmax saturates: the top weight jumps toward 1 and the output collapses onto that value row; with scaling the weights stay softer.", "set": {"Q": [[3, 3], [0, 1]], "K": [[3, 3], [0, 0]], "V": [[1, 0], [0, 1]], "scale": false}, "then": {"scale": true}, "thenText": "set Divide scores by √dk on", "verified": false}], "dropped": 1}</script>
 <script>
 /* Paper to Playground helper library.
    H  : pure drawing + math helpers available to generated compute()/render() code.
@@ -764,101 +787,69 @@ var PG = (function () {
 </script>
 <script>
 function compute(p) {
-  const dk = Math.max(1, Math.round(p.d_k));
-  const scale = p.scaling ? 1 / Math.sqrt(dk) : 1;
-  const Q = p.Q.map(r => r.slice(0, dk));
-  const K = p.K.map(r => r.slice(0, dk));
-  const V = p.V.map(r => r.slice());
-  const nQ = Q.length, nK = K.length, dv = V[0] ? V[0].length : 0;
+  const Q = p.Q, K = p.K, V = p.V;
+  const nq = Q.length, dk = Q[0].length, nk = K.length, dv = V[0].length;
+  const gain = p.gain;
+  const denom = p.scale ? Math.sqrt(dk) : 1;
   const scores = [];
-  for (let i = 0; i < nQ; i++) {
-    const row = [];
-    for (let j = 0; j < nK; j++) {
+  const scaled = [];
+  for (let i = 0; i < nq; i++) {
+    const rs = [], rsc = [];
+    for (let j = 0; j < nk; j++) {
       let s = 0;
-      for (let c = 0; c < dk; c++) s += Q[i][c] * K[j][c];
+      for (let d = 0; d < dk; d++) s += Q[i][d] * K[j][d];
+      rs.push(s);
+      rsc.push(gain * s / denom);
+    }
+    scores.push(rs);
+    scaled.push(rsc);
+  }
+  const w = scaled.map(row => H.softmax(row));
+  const out = [];
+  for (let i = 0; i < nq; i++) {
+    const row = [];
+    for (let c = 0; c < dv; c++) {
+      let s = 0;
+      for (let j = 0; j < nk; j++) s += w[i][j] * V[j][c];
       row.push(s);
     }
-    scores.push(row);
+    out.push(row);
   }
-  const scaled = scores.map(r => r.map(v => v * scale));
-  const weights = scaled.map(r => H.softmax(r));
-  const output = [];
-  for (let i = 0; i < nQ; i++) {
-    const row = new Array(dv).fill(0);
-    for (let j = 0; j < nK; j++) {
-      for (let c = 0; c < dv; c++) row[c] += weights[i][j] * V[j][c];
-    }
-    output.push(row);
-  }
-  const rowSums = weights.map(r => H.sum(r));
-  const maxScore = scores.length ? Math.max(...scores.map(r => Math.max(...r))) : 0;
-  const maxWeight = weights.length ? Math.max(...weights.map(r => Math.max(...r))) : 0;
-  return {
-    dk, scale, Q, K, V, scores, scaled, weights, output, rowSums,
-    maxScore, maxWeight, nQ, nK, dv,
-    warning: ""
-  };
+  const rowSums = w.map(r => H.sum(r));
+  const maxW = w.map(r => Math.max(...r));
+  const entropy = w.map(r => -H.sum(r.map(x => (x > 0 ? x * H.log2(x) : 0))));
+  return {Q, K, V, dk, dv, nq, nk, denom, gain, scores, scaled, w, out, rowSums, maxW, entropy};
 }
 function render(p, out) {
-  const qLabels = out.Q.map((_, i) => "q" + (i + 1));
-  const kLabels = out.K.map((_, j) => "k" + (j + 1));
-  const vLabels = out.V.map((_, j) => "v" + (j + 1));
+  const nq = out.nq, nk = out.nk, dv = out.dv;
+  const qLabels = H.range(nq).map(i => "q" + (i + 1));
+  const kLabels = H.range(nk).map(j => "k" + (j + 1));
+  const vLabels = H.range(dv).map(c => "v" + (c + 1));
 
-  const scorePanel = H.bars({
-    labels: kLabels,
-    values: out.scores[0] || [],
-    title: "Raw scores q1·k_j (before softmax)",
-    yLabel: "dot product",
-    xLabel: "key",
-    digits: 2,
-    highlight: out.scores[0] ? [H.argmax(out.scores[0])] : []
-  });
+  const panel1 = H.matrixTable(out.scores, {title: "Raw scores QKᵀ", rowLabels: qLabels, colLabels: kLabels, digits: 2});
 
-  const weightPanel = H.heatmap({
-    matrix: out.weights,
-    rowLabels: qLabels,
-    colLabels: kLabels,
-    title: "Softmax weights (rows sum to 1)",
-    digits: 3,
-    highlight: out.weights.length ? [[0, H.argmax(out.weights[0])]] : []
-  });
+  const panel2 = H.matrixTable(out.scaled, {title: "Scores after gain / " + (p.scale ? "√d_k = " + H.fmt(out.denom, 2) : "1 (no scaling)"), rowLabels: qLabels, colLabels: kLabels, digits: 2});
 
-  const outPanel = H.bars({
-    labels: out.output[0] ? out.output[0].map((_, c) => "d" + (c + 1)) : [],
-    values: out.output[0] || [],
-    title: "Output row 1 = weighted sum of V rows",
-    yLabel: "value",
-    xLabel: "output dimension",
-    digits: 3
-  });
+  const panel3 = H.heatmap({matrix: out.w, rowLabels: qLabels, colLabels: kLabels, title: "Attention weights softmax(scores)", digits: 3});
 
-  const info = H.matrixTable(out.scaled, {
-    title: "Scaled scores (÷√d_k = " + H.fmt(out.scale, 3) + ")",
-    rowLabels: qLabels,
-    colLabels: kLabels,
-    digits: 3
-  });
+  const panel4 = H.matrixTable(out.out, {title: "Output = weights · V", rowLabels: qLabels, colLabels: vLabels, digits: 3});
 
-  const flow = H.flow({
-    title: "Pipeline",
-    nodes: [
-      { id: "q", label: "Q", sub: out.nQ + "×" + out.dk, x: 60, y: 60 },
-      { id: "k", label: "K", sub: out.nK + "×" + out.dk, x: 60, y: 150 },
-      { id: "s", label: "QKᵀ", sub: "max " + H.fmt(out.maxScore, 2), x: 210, y: 105 },
-      { id: "w", label: "softmax", sub: "max w " + H.fmt(out.maxWeight, 3), x: 360, y: 105 },
-      { id: "v", label: "V", sub: out.nK + "×" + out.dv, x: 360, y: 200 },
-      { id: "o", label: "output", sub: out.nQ + "×" + out.dv, x: 510, y: 150 }
+  const barLabels = [];
+  const barValues = [];
+  for (let i = 0; i < nq; i++) for (let j = 0; j < nk; j++) { barLabels.push("q" + (i + 1) + "→k" + (j + 1)); barValues.push(out.w[i][j]); }
+  const panel5 = H.bars({labels: barLabels, values: barValues, title: "Weight distribution (sums to 1 per row)", yLabel: "weight", max: 1, digits: 3});
+
+  const panel6 = H.lines({
+    x: H.range(nq).map(i => "q" + (i + 1)),
+    series: [
+      {name: "max weight", y: out.maxW},
+      {name: "row sum", y: out.rowSums},
+      {name: "entropy (bits)", y: out.entropy}
     ],
-    edges: [
-      { from: "q", to: "s", label: "·" },
-      { from: "k", to: "s", label: "·" },
-      { from: "s", to: "w", label: out.scaling ? "÷√d_k" : "no scale" },
-      { from: "w", to: "o", label: "×" },
-      { from: "v", to: "o", label: "×" }
-    ]
+    title: "Per-query summary", xLabel: "query", yLabel: "value", yMin: 0, yMax: Math.max(1.05, Math.max(...out.entropy) + 0.2)
   });
 
-  return H.grid(2, [scorePanel, weightPanel, outPanel, info]) + flow;
+  return H.grid(2, [panel1, panel2, panel3, panel4, panel5, panel6]);
 }
 </script>
 <script>
@@ -877,11 +868,17 @@ function render(p, out) {
   function sizeKey(c) { var s = PG.size(c, raw); return c.type === 'vector' ? String(s.len) : c.type === 'matrix' ? s.rows + 'x' + s.cols : ''; }
   /* rebuild every vector/matrix whose size slider changed, whichever control or button changed it */
   function resized() { controls.forEach(function (c) { if (widgets[c.id] && widgets[c.id].getAttribute('data-size') !== sizeKey(c)) build(c); }); }
-  function numInput(c, get, set) {
-    var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get() });
+  /* typed values: blank or invalid input keeps the last valid value, out-of-range input is clamped,
+     and either case is said next to the control instead of happening silently */
+  function say(note, msg) { note.textContent = msg; note.hidden = !msg; }
+  function numInput(c, get, set, note, name) {
+    var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get(), 'aria-label': name });
     i.addEventListener('input', function () {
       var v = parseFloat(i.value);
-      if (isFinite(v)) { set(Math.min(c.max, Math.max(c.min, v))); update(); }
+      if (!isFinite(v)) { say(note, name + ': enter a number (still using ' + H.fmt(get(), 4) + ').'); return; }
+      var w = Math.min(c.max, Math.max(c.min, v));
+      say(note, w !== v ? name + ': allowed range is ' + H.fmt(c.min, 4) + ' to ' + H.fmt(c.max, 4) + ', using ' + H.fmt(w, 4) + '.' : '');
+      set(w); update();
     });
     i.addEventListener('change', function () { i.value = get(); });
     return i;
@@ -894,13 +891,17 @@ function render(p, out) {
     lab.innerHTML = c.label;
     if (lab.tagName === 'LABEL') lab.setAttribute('for', fid);
     w.appendChild(lab);
-    var row = el('div', { 'class': 'row' });
+    var row = el('div', { 'class': 'row' }), note = el('div', { 'class': 'ctl-note', role: 'status' }), name = plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1');
+    note.hidden = true;
     if (c.type === 'slider') {
-      var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] }), o = el('output', {}, H.fmt(raw[c.id], 4));
-      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4); update(); });
-      row.appendChild(rg); row.appendChild(o);
+      /* the slider and an exact-value box stay in sync */
+      var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] });
+      var nb = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = PG.coerce(c, v); rg.value = raw[c.id]; }, note, name + ' (exact value)');
+      nb.className = 'sl-num';
+      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); nb.value = raw[c.id]; say(note, ''); update(); });
+      row.appendChild(rg); row.appendChild(nb);
     } else if (c.type === 'number') {
-      var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
+      var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; }, note, name);
       ni.id = fid; row.appendChild(ni);
     } else if (c.type === 'toggle') {
       var cb = el('input', { type: 'checkbox', id: fid, role: 'switch' });
@@ -916,20 +917,21 @@ function render(p, out) {
     } else if (c.type === 'vector') {
       var len = PG.size(c, raw).len, cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
-        var cell = el('div');
-        cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
-        cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }));
+        var cell = el('div'), tag = c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1);
+        cell.appendChild(el('span', {}, tag));
+        cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }, note, name + ', entry ' + tag));
         cells.appendChild(cell);
       })(i);
       row.appendChild(cells);
     } else if (c.type === 'matrix') {
       var sz = PG.size(c, raw), grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + sz.cols + ',auto)' });
       for (var r = 0; r < sz.rows; r++) for (var k = 0; k < sz.cols; k++) (function (r, k) {
-        grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }));
+        grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }, note,
+          name + ', row ' + (r + 1) + ', column ' + (k + 1)));
       })(r, k);
       row.style.overflowX = 'auto'; row.appendChild(grid);
     }
-    w.appendChild(row);
+    w.appendChild(row); w.appendChild(note);
     w.setAttribute('data-size', sizeKey(c));
   }
   function buildAll() { controls.forEach(build); }
@@ -991,7 +993,9 @@ function render(p, out) {
     $('pg-checks').appendChild(li);
     return li;
   });
-  $('pg-checks-wrap').hidden = !tests.length;
+  $('pg-checks-wrap').hidden = !tests.length && !D.dropped;
+  if (D.dropped) $('pg-checks-wrap').appendChild(el('p', { 'class': 'muted small', style: 'margin:10px 0 0' },
+    D.dropped + (D.dropped === 1 ? ' generated check is' : ' generated checks are') + ' not shown: the expected value did not match the calculation.'));
 
   function load(over) {
     raw = PG.merge(controls, PG.defaults(controls), over || {}).raw;
@@ -1016,7 +1020,10 @@ function render(p, out) {
     $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
     var warn = out && typeof out.warning === 'string' ? out.warning.trim() : '';
     $('pg-warn').hidden = !warn; $('pg-warn').textContent = warn ? 'These settings are outside what the method allows: ' + warn : '';
-    readouts.forEach(function (r, i) { rows[i].innerHTML = out ? show(PG.get(out, r.key), r) : '–'; });
+    readouts.forEach(function (r, i) {
+      var v = out ? PG.get(out, r.key) : undefined, b = pinned ? pinned[i] : undefined;
+      rows[i].innerHTML = out ? show(v, r) + (typeof v === 'number' && typeof b === 'number' ? '<span class="delta">' + H.esc(change(v - b, r.digits)) + ' vs pinned</span>' : '') : '–';
+    });
     tiles.forEach(function (t) {
       var r = readouts[t.i];
       t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
@@ -1115,13 +1122,69 @@ function render(p, out) {
     try { $('pg-sweep').innerHTML = (panels.length ? H.grid(2, panels) : '') + note; wrap.hidden = false; } catch (e2) { wrap.hidden = true; }
   }
 
-  $('pg-reset').addEventListener('click', function () { load({}); });
-  Array.prototype.forEach.call(document.querySelectorAll('button[data-set]'), function (b) {
+  /* pin: freeze the current values so every number in the table also shows its change since then */
+  var pinned = null;
+  function change(d, digits) { return Math.abs(d) < 1e-12 ? 'no change' : (d > 0 ? '+' : '−') + H.fmt(Math.abs(d), digits); }
+  $('pg-pin').addEventListener('click', function () {
+    if (pinned) pinned = null;
+    else {
+      var o = null; try { o = compute(PG.params(controls, raw)); } catch (e) { o = null; }
+      pinned = readouts.map(function (r) { return o ? PG.get(o, r.key) : undefined; });
+    }
+    $('pg-pin').textContent = pinned ? 'Clear pinned values' : 'Pin current values to compare';
+    $('pg-pin').setAttribute('aria-pressed', pinned ? 'true' : 'false');
+    update();
+  });
+
+  /* guided explorations: the button loads the set-up (state a) or the set-up plus its second step (state b);
+     a banner in the playground keeps the exploration text on screen and compares both states */
+  var EX = D.explorations || [], active = null;
+  function exState(ex, which) {
+    var a = PG.merge(controls, PG.defaults(controls), ex.set || {}).raw;
+    return which === 'b' ? PG.merge(controls, a, ex.then || {}).raw : a;
+  }
+  function explore(i, which) {
+    var ex = EX[i]; if (!ex) return;
+    /* "2 · Then" inside a running exploration changes only its own controls, so values the learner edited
+       after the set-up stay; from the card it loads the whole preset */
+    var inPlace = which === 'b' && active && active.i === i;
+    active = { i: i, which: which };
+    raw = inPlace ? PG.merge(controls, raw, ex.then || {}).raw : exState(ex, which);
+    buildAll(); update(); banner();
+  }
+  function banner() {
+    var box = $('pg-xb');
+    if (!active) { box.hidden = true; box.innerHTML = ''; return; }
+    var ex = EX[active.i], two = !!ex.thenText, h = '';
+    h += '<div class="xb-top"><span class="xb-k">Exploration ' + (active.i + 1) + '</span><b>' + ex.title + '</b>' +
+      '<button type="button" class="xb-x" aria-label="Close the exploration">×</button></div>';
+    h += '<p><b>Observe:</b> ' + ex.observe + '</p>';
+    if (two) {
+      h += '<div class="xb-states" role="group" aria-label="Exploration step">' +
+        '<button type="button" data-xs="a" aria-pressed="' + (active.which === 'a') + '">1 · Set-up</button>' +
+        '<button type="button" data-xs="b" aria-pressed="' + (active.which === 'b') + '">2 · Then ' + H.esc(ex.thenText) + '</button></div>';
+      var oa = null, ob = null;
+      try { oa = compute(PG.params(controls, exState(ex, 'a'))); ob = compute(PG.params(controls, exState(ex, 'b'))); } catch (e) { oa = ob = null; }
+      var trs = oa && ob ? readouts.filter(function (r) { return typeof PG.get(oa, r.key) === 'number' && typeof PG.get(ob, r.key) === 'number'; })
+        .map(function (r) {
+          var a = PG.get(oa, r.key), b = PG.get(ob, r.key);
+          return '<tr><td>' + r.label + '</td><td class="val">' + H.esc(H.fmt(a, r.digits)) + '</td><td class="val">' + H.esc(H.fmt(b, r.digits)) +
+            '</td><td class="val">' + H.esc(change(b - a, r.digits)) + '</td></tr>';
+        }) : [];
+      if (trs.length) h += '<table class="xb-cmp"><thead><tr><th>Value (preset settings)</th><th>1 · Set-up</th><th>2 · Then</th><th>Change</th></tr></thead><tbody>' + trs.join('') + '</tbody></table>';
+    }
+    if (ex.verified) h += '<p class="xb-ok">✓ The calculation confirms this observation at ' + (two ? 'these two settings' : 'this setting') + '.</p>';
+    box.innerHTML = h; box.hidden = false;
+    box.querySelector('.xb-x').addEventListener('click', function () { active = null; banner(); });
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-xs]'), function (b) {
+      b.addEventListener('click', function () { explore(active.i, b.getAttribute('data-xs')); });
+    });
+  }
+  $('pg-reset').addEventListener('click', function () { active = null; banner(); load({}); });
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-ex]'), function (b) {
     b.addEventListener('click', function () {
-      var over = {};
-      try { over = JSON.parse(b.getAttribute('data-set')); } catch (e) {}
       var before = JSON.stringify(raw);
-      load(over);
+      explore(Number(b.getAttribute('data-ex')), b.getAttribute('data-state') === 'b' ? 'b' : 'a');
       /* always answer the click: say what was applied and flash the results */
       var note = b.parentNode.querySelector('.applied') || b.parentNode.appendChild(el('span', { 'class': 'applied' }));
       note.textContent = JSON.stringify(raw) === before ? 'These settings are already loaded: read the values in the playground.' : 'Settings applied in the playground.';
