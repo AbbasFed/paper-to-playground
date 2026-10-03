@@ -678,12 +678,19 @@ def usable(checks):
 
 
 def finalise(parts, checks, report):
-    """Make the best candidate presentable: drop failing tests, backfill readouts. Returns notes."""
+    """Make the best candidate presentable: drop failing known-case tests, backfill readouts. Returns notes.
+
+    A known-case test that still fails most often has a wrong hand-computed expectation, so it is dropped.
+    An invariant that holds at the defaults but breaks at some other setting is evidence about the PAGE:
+    it stays on the page as a live check and turns red when the learner reaches that setting."""
     notes = []
-    failed = {c["name"].split(": ", 1)[1] for c in checks if not c["ok"] and c["name"].startswith(("test: ", "invariant: "))}
+    failed = {c["name"].split(": ", 1)[1] for c in checks if not c["ok"] and c["name"].startswith("test: ")}
+    kept = sorted({c["name"].split(": ", 1)[1] for c in checks if not c["ok"] and c["name"].startswith("invariant: ")} - failed)
     if failed:
         parts["tests"] = [t for t in parts["tests"] if t["name"] not in failed]
         notes.append("removed %d failing test(s) from the page: %s" % (len(failed), "; ".join(sorted(failed))))
+    if kept:
+        notes.append("kept %d invariant(s) that fail at some settings as live checks, so the page shows the failure there: %s" % (len(kept), "; ".join(kept)))
     if report and not report.get("fatal"):
         miss = set(report["readoutsMissing"])
         parts["readouts"] = [r for r in parts["readouts"] if r["key"] not in miss]

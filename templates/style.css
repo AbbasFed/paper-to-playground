@@ -156,6 +156,9 @@ button.try:hover { background: var(--primary-dark); }
 .pg-cell > .pg-grid > .pg-cell { background: transparent; border: 0; padding: 0; box-shadow: none; }
 #pg-visual > .pg-svg { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
 .pg-note { color: var(--muted); font-size: 0.88rem; margin: 6px 0; text-align: center; }
+.warn { color: var(--ours); background: var(--ours-bg); border: 1.5px solid var(--accent); border-left-width: 6px; border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; font-weight: 600; }
+.checks .na .mark { color: var(--muted); background: var(--line); } .checks .na .nm { color: var(--muted); }
+.checks .no { background: var(--bad-bg); border-radius: 8px; padding-left: 8px; padding-right: 8px; }
 .err { color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; font-size: 0.92rem; }
 
 .sub-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; margin: 30px 0 14px; }

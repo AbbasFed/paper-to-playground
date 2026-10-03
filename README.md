@@ -133,7 +133,7 @@ Each check is logged to the trace with pass / fail / warn and a message.
 
 **Repair.** If a hard check fails and budget remains, the agent sends the brief, the exact failure messages and
 only the tags involved, and asks for only the corrected tags. The reply is merged and everything is re-checked;
-a repair that makes things worse is rejected. At most two rounds; the second is skipped when the only remaining
+a repair that makes things worse is rejected. If a known-case test still fails after the repairs it is removed from the page (its hand-computed expectation is usually what is wrong). An invariant that still fails at some setting is never removed: it stays as a live check and turns red when the learner reaches that setting. `compute` may also return a `warning` for settings the method does not allow; the page shows it in a banner and marks the invariants as not applicable there. At most two rounds; the second is skipped when the only remaining
 failures are known-case tests, which are removed from the page instead.
 
 **Fallback.** The best candidate so far is always kept. When budget or time runs out the agent still assembles

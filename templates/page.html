@@ -54,6 +54,7 @@
   </aside>
   <div class="stage">
     <div id="pg-error" class="err" hidden></div>
+    <div id="pg-warn" class="warn" role="status" hidden></div>
     <div id="pg-tiles" class="tiles"></div>
     <div id="pg-visual"></div>
     <div id="pg-sweep-wrap" hidden>
@@ -257,6 +258,8 @@
       } catch (e2) { $('pg-visual').innerHTML = ''; msg = 'Drawing error: ' + (e2 && e2.message || e2); }
     }
     $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
+    var warn = out && typeof out.warning === 'string' ? out.warning.trim() : '';
+    $('pg-warn').hidden = !warn; $('pg-warn').textContent = warn ? 'These settings are outside what the method allows: ' + warn : '';
     readouts.forEach(function (r, i) { rows[i].innerHTML = out ? show(PG.get(out, r.key), r) : '–'; });
     tiles.forEach(function (t) {
       var r = readouts[t.i];
@@ -283,7 +286,8 @@
         if (t.params && Object.keys(t.params).length) {
           var q = PG.params(controls, PG.merge(controls, PG.defaults(controls), t.params).raw);
           ok = PG.expect(t.expect, compute(q), q).pass;
-        } else ok = !!out && PG.expect(t.expect, out, p).pass;
+        } else if (warn) { checkItems[i].className = 'na'; checkItems[i].firstChild.textContent = '–'; return; }
+        else ok = !!out && PG.expect(t.expect, out, p).pass;
       } catch (e3) { ok = false; }
       checkItems[i].className = ok ? 'ok' : 'no';
       checkItems[i].firstChild.textContent = ok ? '✓' : '✗';

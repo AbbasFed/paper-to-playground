@@ -96,7 +96,9 @@ function __runChecks(spec) {
       try { msg = draw(r.p, r.out); } catch (e3) { msg = 'render threw: ' + String(e3 && e3.message || e3); }
       if (msg && R.renderEdge.length < 6) R.renderEdge.push('at ' + s.label + ': ' + msg);
     }
-    if (!acc.nan.length) invariants.forEach(function (t) {
+    var declared = typeof r.out.warning === 'string' && r.out.warning.trim() !== '';   /* compute() says: invalid setting */
+    if (declared) R.warned = (R.warned || 0) + 1;
+    if (!acc.nan.length && !declared) invariants.forEach(function (t) {
       if (seenInv[t.name]) return;
       var v = PG.expect(t.expect, r.out, r.p);
       if (!v.pass) { seenInv[t.name] = 1; R.invariant.push({ name: t.name, at: s.label, error: v.error || '', got: short(r.out, 300) }); }
