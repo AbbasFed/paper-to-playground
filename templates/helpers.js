@@ -164,7 +164,10 @@ var H = (function () {
     if (o.max !== undefined && isFinite(o.max)) hi = Math.max(hi, Number(o.max)); else hi = hi + span0 * 0.12;
     if (lo < 0) lo -= span0 * 0.14;   /* room for value labels under negative bars */
     if (hi === lo) hi = lo + 1;
-    var tk = ticks(lo, hi, 5), pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var tk = ticks(lo, hi, 5), widest = 0;
+    tk.t.forEach(function (v) { widest = Math.max(widest, H.fmt(v, tk.d).length); });
+    m.l = Math.max(m.l, widest * 7.4 + 26);   /* long tick labels (e.g. 1.00e-10) must not be clipped */
+    var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var Y = function (v) { return m.t + ph - (v - lo) / (hi - lo) * ph; };
     var hl = hlSet(o.highlight), s = '';
     if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
@@ -207,12 +210,15 @@ var H = (function () {
     var y0 = ys.length ? Math.min.apply(null, ys) : 0, y1 = ys.length ? Math.max.apply(null, ys) : 1;
     if (x1 === x0) { x0 -= 0.5; x1 += 0.5; }
     var pad = (y1 - y0) * 0.06 || Math.abs(y0) * 0.1 || 0.5; y0 -= pad; y1 += pad;
-    if (o.yMin !== undefined && isFinite(o.yMin)) y0 = Number(o.yMin);
-    if (o.yMax !== undefined && isFinite(o.yMax)) y1 = Number(o.yMax);
+    /* a requested axis range may widen the view but never clips data into a false plateau */
+    if (o.yMin !== undefined && isFinite(o.yMin)) y0 = Math.min(y0, Number(o.yMin));
+    if (o.yMax !== undefined && isFinite(o.yMax)) y1 = Math.max(y1, Number(o.yMax));
     if (y1 <= y0) y1 = y0 + 1;
     var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var X = function (v) { return m.l + (v - x0) / (x1 - x0) * pw; }, Y = function (v) { return m.t + ph - (H.clamp(v, y0, y1) - y0) / (y1 - y0) * ph; };
-    var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5);
+    var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5), widest = 0;
+    ty.t.forEach(function (v) { widest = Math.max(widest, H.fmt(v, ty.d).length); });
+    if (widest * 7.4 + 26 > m.l) { m.l = widest * 7.4 + 26; pw = w - m.l - m.r; }
     if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
     ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' }) + T(m.l - 6, Y(v) + 4, H.fmt(v, ty.d), { anchor: 'end', size: 12.5, color: 'muted' }); });
     if (cat) tx = { t: H.range(cat.length).filter(function (i) { return cat.length <= 12 || i % Math.ceil(cat.length / 12) === 0; }), d: 0 };
@@ -221,7 +227,7 @@ var H = (function () {
     marks.forEach(function (mk) {
       if (!isFinite(mk.x)) return;
       s += H.line(X(mk.x), m.t, X(mk.x), m.t + ph, { color: 'accent', width: 1.5, dash: true });
-      if (mk.label !== undefined && mk.label !== '') s += T(H.clamp(X(mk.x), m.l + 30, w - m.r - 30), m.t + 11, mk.label, { size: 11, color: 'accent', bold: true });
+      if (mk.label !== undefined && mk.label !== '') s += T(H.clamp(X(mk.x), m.l + 30, w - m.r - 30), m.t + ph - 7, mk.label, { size: 11, color: 'accent', bold: true });
     });
     series.forEach(function (sr) {
       s += H.path(sr.x.map(function (xv, i) { return [isFinite(xv) && isFinite(sr.y[i]) ? X(xv) : NaN, isFinite(sr.y[i]) ? Y(sr.y[i]) : NaN]; }), { color: sr.color, width: 2.6, dash: sr.dash });

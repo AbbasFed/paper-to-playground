@@ -27,7 +27,8 @@ def build_html(parts, case):
     esc = html.escape
     if c["equation"].strip().lower() == c["section"].strip().lower():
         c = dict(c, equation="")
-    formula = re.sub(r";\s+", ";<br>", inline_html(c["formula"]))
+    formula = re.sub(r";\s+|\s*\n\s*", "<br>", inline_html(c["formula"]).strip())
+    formula = re.sub(r"(\(\d{1,2}\))\s+(?=\S)", r"\1<br>", formula)   # one numbered equation per line
     cite = " · ".join(esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
     title = c["title"] or c["paper"] or "Interactive explainer"
 
