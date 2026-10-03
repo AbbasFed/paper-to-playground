@@ -1,0 +1,12 @@
+Your answer for the brief below failed automatic checks. Correct it.
+
+BRIEF
+{{BRIEF}}
+
+FAILED CHECKS
+{{FAILURES}}
+
+CURRENT TAGS (the ones involved)
+{{TAGS}}
+
+Reply with ONLY the tags you change, each one complete (it replaces the old tag entirely), in the same format as before. Do not resend unchanged tags, do not send <plan>, no text outside tags. If a test fails, decide from the maths whether the code or the test is wrong and fix that one.

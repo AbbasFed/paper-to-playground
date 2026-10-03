@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE_TEXT}}</title>
+<style>
+{{STYLE}}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+{{HEADER}}
+</header>
+
+<section id="idea">
+<h2>The idea</h2>
+{{IDEA}}
+</section>
+
+<section id="symbols">
+<h2>Symbols</h2>
+{{SYMBOLS}}
+</section>
+
+<section id="how">
+<h2>How it works</h2>
+{{STEPS}}
+</section>
+
+<section id="playground">
+<div class="badges"><span class="tag ours">Our example</span></div>
+<h2>Interactive playground</h2>
+<p class="muted small">Small made-up inputs chosen for clarity. Change any control: the picture, the values and the checks are recalculated immediately.</p>
+<div class="play">
+  <div class="panel">
+    <h3>Controls</h3>
+    <div id="pg-controls"></div>
+    <button type="button" id="pg-reset">Reset to defaults</button>
+  </div>
+  <div class="panel">
+    <div id="pg-error" class="err" hidden></div>
+    <div id="pg-visual"></div>
+    <div class="results">
+      <div>
+        <h3>Intermediate and final values</h3>
+        <table id="pg-readouts"><tbody></tbody></table>
+      </div>
+      <div id="pg-checks-wrap" hidden>
+        <h3>Live checks</h3>
+        <ul class="checks" id="pg-checks"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<section id="explore">
+<h2>Guided explorations</h2>
+{{EXPLORATIONS}}
+</section>
+
+<section id="limitation" class="limit">
+<h2>Keep in mind</h2>
+{{LIMITATION}}
+</section>
+
+<section id="grounding">
+<h2>Source grounding</h2>
+{{GROUNDING}}
+</section>
+
+<footer>All values computed live in your browser. This page works offline and loads nothing from the network.</footer>
+</main>
+
+<script type="application/json" id="pg-data">{{DATA}}</script>
+<script>
+{{HELPERS}}
+</script>
+<script>
+{{MODEL_JS}}
+</script>
+<script>
+(function () {
+  'use strict';
+  var D = JSON.parse(document.getElementById('pg-data').textContent);
+  var controls = D.controls, readouts = D.readouts, tests = D.tests;
+  var raw = PG.defaults(controls), widgets = {};
+  function $(id) { return document.getElementById(id); }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag), k;
+    for (k in (attrs || {})) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function visibleLength(c) { return c.lengthFrom ? Math.max(1, Math.min(c.length, Math.round(raw[c.lengthFrom]))) : c.length; }
+  function numInput(c, get, set) {
+    var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get() });
+    i.addEventListener('input', function () {
+      var v = parseFloat(i.value);
+      if (isFinite(v)) { set(Math.min(c.max, Math.max(c.min, v))); update(); }
+    });
+    i.addEventListener('change', function () { i.value = get(); });
+    return i;
+  }
+  function build(c) {
+    var w = widgets[c.id];
+    if (!w) { w = widgets[c.id] = el('div', { 'class': 'ctl' }); $('pg-controls').appendChild(w); }
+    w.innerHTML = '';
+    var fid = 'ctl-' + c.id, lab = el(c.type === 'vector' || c.type === 'matrix' ? 'div' : 'label', { 'class': 'lbl' });
+    lab.innerHTML = c.label;
+    if (lab.tagName === 'LABEL') lab.setAttribute('for', fid);
+    w.appendChild(lab);
+    var row = el('div', { 'class': 'row' });
+    if (c.type === 'slider') {
+      var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] }), o = el('output', {}, H.fmt(raw[c.id], 4));
+      rg.addEventListener('input', function () {
+        raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4);
+        controls.forEach(function (d) { if (d.lengthFrom === c.id) build(d); });
+        update();
+      });
+      row.appendChild(rg); row.appendChild(o);
+    } else if (c.type === 'number') {
+      var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
+      ni.id = fid; row.appendChild(ni);
+    } else if (c.type === 'toggle') {
+      var cb = el('input', { type: 'checkbox', id: fid });
+      cb.checked = !!raw[c.id];
+      cb.addEventListener('change', function () { raw[c.id] = cb.checked; st.textContent = cb.checked ? 'on' : 'off'; update(); });
+      var st = el('span', { 'class': 'muted small' }, cb.checked ? 'on' : 'off');
+      row.appendChild(cb); row.appendChild(st);
+    } else if (c.type === 'select') {
+      var sel = el('select', { id: fid });
+      c.options.forEach(function (op) { var e = el('option', { value: String(op.value) }, op.label); if (String(op.value) === String(raw[c.id])) e.selected = true; sel.appendChild(e); });
+      sel.addEventListener('change', function () { raw[c.id] = PG.coerce(c, sel.value); update(); });
+      row.appendChild(sel);
+    } else if (c.type === 'vector') {
+      var len = visibleLength(c), cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
+      for (var i = 0; i < len; i++) (function (i) {
+        var cell = el('div');
+        cell.appendChild(el('span', { style: 'display:block' }, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
+        cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }));
+        cells.appendChild(cell);
+      })(i);
+      row.appendChild(cells);
+    } else if (c.type === 'matrix') {
+      var grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + c.cols + ',auto)' });
+      for (var r = 0; r < c.rows; r++) for (var k = 0; k < c.cols; k++) (function (r, k) {
+        grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }));
+      })(r, k);
+      row.style.overflowX = 'auto'; row.appendChild(grid);
+    }
+    w.appendChild(row);
+  }
+  function buildAll() { controls.forEach(build); }
+
+  var rows = readouts.map(function (r) {
+    var tr = el('tr'), th = el('td'), td = el('td', { 'class': 'val', style: 'white-space:pre-wrap' });
+    th.innerHTML = r.label; tr.appendChild(th); tr.appendChild(td);
+    $('pg-readouts').tBodies[0].appendChild(tr);
+    return td;
+  });
+  function show(v, r) {
+    var u = r.unit ? ' ' + r.unit : '';
+    if (Array.isArray(v) && v.length && Array.isArray(v[0])) return v.map(function (x) { return H.fmt(x, r.digits); }).join('\n') + u;
+    return H.fmt(v, r.digits) + u;
+  }
+  function describe(params) {
+    return Object.keys(params).map(function (k) { return k + ' = ' + JSON.stringify(params[k]); }).join(', ');
+  }
+  var checkItems = tests.map(function (t, i) {
+    var li = el('li'), fixed = t.params && Object.keys(t.params).length;
+    li.appendChild(el('span', { 'class': 'mark' }));
+    var nm = el('span'); nm.innerHTML = t.name; li.appendChild(nm);
+    li.appendChild(el('span', { 'class': 'when' }, fixed ? 'known case: ' + describe(t.params) : 'holds for the current settings'));
+    if (fixed) {
+      var b = el('button', { type: 'button' }, 'Load this case');
+      b.addEventListener('click', function () { load(t.params); });
+      li.appendChild(b);
+    }
+    $('pg-checks').appendChild(li);
+    return li;
+  });
+  $('pg-checks-wrap').hidden = !tests.length;
+
+  function load(over) {
+    raw = PG.merge(controls, PG.defaults(controls), over || {}).raw;
+    buildAll(); update();
+  }
+  function update() {
+    var p = PG.params(controls, raw), out = null, msg = '';
+    try {
+      if (typeof compute !== 'function') throw new Error('the calculation code did not load');
+      out = compute(p);
+      if (!out || typeof out !== 'object') throw new Error('the calculation returned no values');
+    } catch (e) { out = null; msg = 'Calculation error: ' + (e && e.message || e); }
+    if (out) {
+      try {
+        if (typeof render !== 'function') throw new Error('the drawing code did not load');
+        var html = render(p, out);
+        if (typeof html !== 'string') throw new Error('nothing to draw');
+        $('pg-visual').innerHTML = html;
+      } catch (e2) { $('pg-visual').innerHTML = ''; msg = 'Drawing error: ' + (e2 && e2.message || e2); }
+    }
+    $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
+    readouts.forEach(function (r, i) { rows[i].textContent = out ? show(PG.get(out, r.key), r) : '–'; });
+    tests.forEach(function (t, i) {
+      var ok = false;
+      try {
+        if (t.params && Object.keys(t.params).length) {
+          var q = PG.params(controls, PG.merge(controls, PG.defaults(controls), t.params).raw);
+          ok = PG.expect(t.expect, compute(q), q).pass;
+        } else ok = !!out && PG.expect(t.expect, out, p).pass;
+      } catch (e3) { ok = false; }
+      checkItems[i].className = ok ? 'ok' : 'no';
+      checkItems[i].firstChild.textContent = ok ? '✓' : '✗';
+    });
+  }
+  $('pg-reset').addEventListener('click', function () { load({}); });
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-set]'), function (b) {
+    b.addEventListener('click', function () {
+      var over = {};
+      try { over = JSON.parse(b.getAttribute('data-set')); } catch (e) {}
+      load(over);
+      $('playground').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  buildAll(); update();
+})();
+</script>
+</body>
+</html>

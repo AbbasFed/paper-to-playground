@@ -1,0 +1,7 @@
+{
+  "source_url": "https://arxiv.org/abs/1503.02531",
+  "title": "Distilling the Knowledge in a Neural Network",
+  "text": "2 Distillation\n\nNeural networks typically produce class probabilities by using a \"softmax\" output layer that converts the logit, z_i, computed for each class into a probability, q_i, by comparing z_i with the other logits.\n\nq_i = exp(z_i / T) / Σ_j exp(z_j / T)    (1)\n\nwhere T is a temperature that is normally set to 1. Using a higher value for T produces a softer probability distribution over classes.\n\nIn the simplest form of distillation, knowledge is transferred to the distilled model by training it on a transfer set and using a soft target distribution for each case in the transfer set that is produced by using the cumbersome model with a high temperature in its softmax. The same high temperature is used when training the distilled model, but after it has been trained it uses a temperature of 1.",
+  "focus": "Softmax with temperature (Section 2, Eq. 1): how the temperature T reshapes the probabilities computed from a few editable logits. Show logits, scaled logits z_i/T, exponentials and probabilities. Explorations: T = 1 versus a high T; very low T approaching a one-hot choice. Checks: probabilities sum to 1; equal logits give a uniform distribution at any T.",
+  "audience": "Engineering undergraduates who have seen exponentials and probabilities but not neural-network training."
+}

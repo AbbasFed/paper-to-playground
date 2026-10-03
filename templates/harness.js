@@ -1,0 +1,119 @@
+/* Offline checker, run inside the embedded JS engine after helpers.js and the generated
+   compute()/render() have been loaded. Returns a JSON string describing what happened. */
+function __runChecks(spec) {
+  'use strict';
+  var controls = spec.controls, tests = spec.tests || [], readouts = spec.readouts || [];
+  var R = { fatal: null, defaults: null, settings: 0, edgeErrors: [], edgeNaN: [], edgeInf: [], inert: [], tests: [], invariant: [],
+    render: null, renderEdge: [], readoutsMissing: [], outKeys: [] };
+
+  function short(v, k) { var s; try { s = JSON.stringify(v); } catch (e) { s = String(v); } s = String(s); return s.length > k ? s.slice(0, k) + '…' : s; }
+  function bad(v, path, acc, depth) {
+    if (acc.nan.length + acc.inf.length > 6 || depth > 6) return;
+    if (typeof v === 'number') { if (isNaN(v)) acc.nan.push(path); else if (!isFinite(v)) acc.inf.push(path); return; }
+    if (v && typeof v === 'object') Object.keys(v).forEach(function (k) { bad(v[k], path ? path + (Array.isArray(v) ? '[' + k + ']' : '.' + k) : k, acc, depth + 1); });
+  }
+  function run(raw) {
+    var p = PG.params(controls, raw), out = compute(p);
+    if (!out || typeof out !== 'object' || Array.isArray(out)) throw new Error('compute() must return a plain object of named values');
+    return { p: p, out: out };
+  }
+  function draw(p, out) {
+    var s = render(p, out);
+    if (typeof s !== 'string' || s.indexOf('<svg') < 0) return 'render() must return a string containing an <svg> element';
+    if (s.length > 400000) return 'render() output is too large (' + s.length + ' chars)';
+    var m = />[^<]*\b(NaN|undefined)\b[^<]*</.exec(s) || /\[object Object\]/.exec(s);
+    if (m) return 'the visual displays "' + m[0].replace(/[<>]/g, '').slice(0, 60) + '" (a label or value is NaN/undefined)';
+    if (/="[^"]*\bNaN\b/.test(s)) return 'the visual has NaN coordinates/sizes';
+    return null;
+  }
+
+  if (typeof compute !== 'function') { R.fatal = 'compute is not defined as a function'; return JSON.stringify(R); }
+  if (typeof render !== 'function') R.render = 'render is not defined as a function';
+
+  var def = PG.defaults(controls), base, baseStr;
+  try {
+    base = run(def); baseStr = JSON.stringify(base.out);
+    var acc = { nan: [], inf: [] }; bad(base.out, '', acc, 0);
+    R.outKeys = Object.keys(base.out);
+    if (acc.nan.length || acc.inf.length) R.defaults = 'non-finite outputs at default controls: ' + acc.nan.concat(acc.inf).join(', ');
+  } catch (e) { R.fatal = 'compute(defaults) threw: ' + String(e && e.message || e); return JSON.stringify(R); }
+
+  if (!R.render) {
+    try { R.render = draw(base.p, base.out); } catch (e2) { R.render = 'render(defaults) threw: ' + String(e2 && e2.message || e2); }
+  }
+  readouts.forEach(function (r) { var v = PG.get(base.out, r.key); if (v === undefined || typeof v === 'function') R.readoutsMissing.push(r.key); });
+
+  /* settings to sweep: every control at its extremes / every option */
+  var sweep = [];
+  function add(c, label, v) { var raw = JSON.parse(JSON.stringify(def)); raw[c.id] = PG.coerce(c, v); sweep.push({ id: c.id, label: c.id + '=' + label, raw: raw }); }
+  controls.forEach(function (c) {
+    if (c.type === 'slider' || c.type === 'number') {
+      add(c, c.min, c.min); add(c, c.max, c.max);
+      var mid = c.min + Math.round((c.max - c.min) / 2 / c.step) * c.step; if (mid !== c.default) add(c, mid, mid);
+    } else if (c.type === 'toggle') { add(c, 'true', true); add(c, 'false', false); }
+    else if (c.type === 'select') c.options.forEach(function (o) { add(c, o.value, o.value); });
+    else if (c.type === 'vector') {
+      var fill = function (v) { return c.default.map(function () { return v; }); };
+      add(c, 'all ' + c.min, fill(c.min)); add(c, 'all ' + c.max, fill(c.max));
+      var one = fill(c.min); one[0] = c.max; add(c, 'first ' + c.max + ', rest ' + c.min, one);
+      var bump = c.default.slice(); bump[bump.length - 1] = bump[bump.length - 1] === c.max ? c.min : c.max; add(c, 'last element changed', bump);
+    } else if (c.type === 'matrix') {
+      var fm = function (v) { return c.default.map(function (r) { return r.map(function () { return v; }); }); };
+      add(c, 'all ' + c.min, fm(c.min)); add(c, 'all ' + c.max, fm(c.max));
+      var b2 = JSON.parse(JSON.stringify(c.default)); b2[0][0] = b2[0][0] === c.max ? c.min : c.max; add(c, 'first entry changed', b2);
+    }
+  });
+  /* second base: other controls moved off their defaults, so a control that only matters
+     in some situations (e.g. a toggle that needs unequal inputs) is not called inert */
+  var alt = JSON.parse(JSON.stringify(def));
+  controls.forEach(function (c) {
+    var ramp = function (i, k) { return c.min + Math.round((c.max - c.min) * (i + 1) / (k + 1) / c.step) * c.step; };
+    if (c.type === 'vector') alt[c.id] = PG.coerce(c, c.default.map(function (_, i) { return ramp(i, c.length); }));
+    else if (c.type === 'matrix') alt[c.id] = PG.coerce(c, c.default.map(function (r, i) { return r.map(function (_, j) { return ramp(i * c.cols + j, c.rows * c.cols); }); }));
+  });
+  /* further bases: each toggle state / select option of the ramped base, because one control often gates another */
+  var bases = [alt];
+  controls.forEach(function (c) {
+    var vals = c.type === 'toggle' ? [true, false] : c.type === 'select' ? c.options.map(function (o) { return o.value; }) : [];
+    vals.forEach(function (v) { if (bases.length < 10 && v !== def[c.id]) { var b = JSON.parse(JSON.stringify(alt)); b[c.id] = v; bases.push(b); } });
+  });
+  bases = bases.map(function (b) { try { return { raw: b, str: JSON.stringify(run(b).out) }; } catch (e) { return null; } }).filter(Boolean);
+  var invariants = tests.filter(function (t) { return !t.params || !Object.keys(t.params).length; });
+  var changed = {}, seenInv = {};
+  sweep.forEach(function (s) {
+    var r;
+    try { r = run(s.raw); } catch (e) { if (R.edgeErrors.length < 6) R.edgeErrors.push('compute threw at ' + s.label + ': ' + String(e && e.message || e)); return; }
+    if (JSON.stringify(r.out) !== baseStr) changed[s.id] = 1;
+    else if (!changed[s.id]) bases.forEach(function (bs) {
+      if (changed[s.id]) return;
+      try { var a2 = JSON.parse(JSON.stringify(bs.raw)); a2[s.id] = s.raw[s.id]; if (JSON.stringify(run(a2).out) !== bs.str) changed[s.id] = 1; } catch (e4) {}
+    });
+    var acc = { nan: [], inf: [] }; bad(r.out, '', acc, 0);
+    if (acc.nan.length && R.edgeNaN.length < 6) R.edgeNaN.push('NaN at ' + s.label + ' in out.' + acc.nan.slice(0, 3).join(', out.'));
+    if (acc.inf.length && R.edgeInf.length < 6) R.edgeInf.push('Infinity at ' + s.label + ' in out.' + acc.inf.slice(0, 3).join(', out.'));
+    if (typeof render === 'function') {
+      var msg;
+      try { msg = draw(r.p, r.out); } catch (e3) { msg = 'render threw: ' + String(e3 && e3.message || e3); }
+      if (msg && R.renderEdge.length < 6) R.renderEdge.push('at ' + s.label + ': ' + msg);
+    }
+    if (!acc.nan.length) invariants.forEach(function (t) {
+      if (seenInv[t.name]) return;
+      var v = PG.expect(t.expect, r.out, r.p);
+      if (!v.pass) { seenInv[t.name] = 1; R.invariant.push({ name: t.name, at: s.label, error: v.error || '', got: short(r.out, 300) }); }
+    });
+  });
+  R.settings = sweep.length;
+  controls.forEach(function (c) { if (!changed[c.id]) R.inert.push(c.id); });
+
+  tests.forEach(function (t) {
+    var m = PG.merge(controls, def, t.params || {}), rec = { name: t.name, pass: false, error: '', got: '' };
+    if (m.unknown.length) { rec.error = 'params uses unknown control id(s): ' + m.unknown.join(', '); R.tests.push(rec); return; }
+    try {
+      var r = run(m.raw), v = PG.expect(t.expect, r.out, r.p);
+      rec.pass = v.pass; rec.error = v.error || '';
+      if (!v.pass) rec.got = 'p=' + short(r.p, 200) + ' out=' + short(r.out, 400);
+    } catch (e) { rec.error = 'compute threw: ' + String(e && e.message || e); }
+    R.tests.push(rec);
+  });
+  return JSON.stringify(R);
+}

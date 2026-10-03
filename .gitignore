@@ -1,0 +1,9 @@
+.env
+.env.*
+/out/
+/runs/
+.venv/
+venv/
+__pycache__/
+*.pyc
+debug_*.txt
