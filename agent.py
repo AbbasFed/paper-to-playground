@@ -226,8 +226,10 @@ def run(args, trace, key, budget):
         hard = C.hard_failures(best[3])
         if not hard:
             break
-        if rnd > 1 and all(c["name"].startswith("test: ") for c in hard):
-            trace.event("repair", "skip", "not_needed", round=rnd, reason="only known-case tests still fail; they are removed from the page instead")
+        if rnd > 1 and C.usable(best[3]) and not any(c["name"].startswith(STRUCTURAL) for c in hard):
+            trace.event("repair", "skip", "not_needed", round=rnd, remaining=[c["name"] for c in hard],
+                        reason="the page works; what still fails is not page-breaking, so a second repair is not worth its tokens "
+                               "(failing invariants stay visible as live checks, failing known cases are left out and counted on the page)")
             break
         why = budget.allow(min_tokens=1500, min_time=30.0)
         if why:

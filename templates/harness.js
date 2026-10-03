@@ -77,6 +77,21 @@ function __runChecks(spec) {
     var vals = c.type === 'toggle' ? [true, false] : c.type === 'select' ? c.options.map(function (o) { return o.value; }) : [];
     vals.forEach(function (v) { if (bases.length < 10 && v !== def[c.id]) { var b = JSON.parse(JSON.stringify(alt)); b[c.id] = v; bases.push(b); } });
   });
+  function variant(fn) {
+    var b = JSON.parse(JSON.stringify(def));
+    controls.forEach(function (c, i) { var v = fn(c, i); if (v !== undefined) b[c.id] = PG.coerce(c, v); });
+    return b;
+  }
+  function isNum(c) { return c.type === 'slider' || c.type === 'number'; }
+  function oneHot(c) {
+    if (c.type === 'vector') return c.default.map(function (_, i) { return i === 0 ? c.max : c.min; });
+    if (c.type === 'matrix') return c.default.map(function (r, i) { return r.map(function (_, j) { return i === j ? c.max : c.min; }); });
+  }
+  bases.push(variant(function (c) { return isNum(c) ? c.max : undefined; }));                       /* sizes and counts at their largest */
+  bases.push(variant(function (c) { return isNum(c) ? c.min : undefined; }));
+  bases.push(variant(function (c, i) { return isNum(c) ? c.min + Math.round((c.max - c.min) * ((i % 3) + 1) / 4 / c.step) * c.step : undefined; }));   /* unequal values */
+  bases.push(variant(function (c, i) { return isNum(c) ? (i % 2 ? c.max : c.min) : oneHot(c); }));  /* some zeros, some large */
+  bases.push(variant(function (c, i) { return isNum(c) ? (i % 2 ? c.min : c.max) : oneHot(c); }));
   bases = bases.map(function (b) { try { return { raw: b, str: JSON.stringify(run(b).out) }; } catch (e) { return null; } }).filter(Boolean);
   var invariants = tests.filter(function (t) { return !t.params || !Object.keys(t.params).length; });
   var changed = {}, seenInv = {};

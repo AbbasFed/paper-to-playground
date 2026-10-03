@@ -251,7 +251,9 @@
     $('pg-checks').appendChild(li);
     return li;
   });
-  $('pg-checks-wrap').hidden = !tests.length;
+  $('pg-checks-wrap').hidden = !tests.length && !D.dropped;
+  if (D.dropped) $('pg-checks-wrap').appendChild(el('p', { 'class': 'muted small', style: 'margin:10px 0 0' },
+    D.dropped + (D.dropped === 1 ? ' generated check is' : ' generated checks are') + ' not shown: the expected value did not match the calculation.'));
 
   function load(over) {
     raw = PG.merge(controls, PG.defaults(controls), over || {}).raw;

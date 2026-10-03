@@ -41,6 +41,20 @@ class SpecNormalisation(unittest.TestCase):
         self.assertEqual(len(C.override_problems(fixed, {"M": [[1]]})), 1)
 
 
+class SmallerOverrideSetsTheSize(unittest.TestCase):
+    def test_size_slider_follows_a_shorter_override(self):
+        controls, _, _ = C.normalise_controls(CONTROLS)
+        C.fit_controls(controls, [])
+        fixed = C.coerce_override(controls, {"p": [7, 7], "M": [[1, 2]]})
+        self.assertEqual((fixed["n"], fixed["r"], fixed["k"]), (2, 1, 2))
+        self.assertEqual(fixed["p"][:2], [7, 7])
+
+    def test_an_explicit_size_is_respected(self):
+        controls, _, _ = C.normalise_controls(CONTROLS)
+        C.fit_controls(controls, [])
+        self.assertEqual(C.coerce_override(controls, {"p": [7, 7], "n": 4})["n"], 4)
+
+
 class ResizeSweep(unittest.TestCase):
     def test_good_candidate_passes_at_every_size(self):
         _, results, rep = C.evaluate(tags(), EXCERPT)

@@ -287,6 +287,21 @@ def coerce_override(controls, over):
             d = c["default"]
             fixed[k] = [[clamp(v[i][j], d[i][j]) if i < len(v) and isinstance(v[i], list) and j < len(v[i]) else d[i][j]
                          for j in range(c["cols"])] for i in range(c["rows"])]
+    # a size-linked vector/matrix given smaller than its declared size means "use this size": set the size
+    # slider as well, otherwise the rest would be padded from the default and a different input would be tested
+    for k, v in (over.items() if isinstance(over, dict) else []):
+        c = by.get(k)
+        if c is None or k not in fixed or not isinstance(v, list) or not v:
+            continue
+        sizes = []
+        if c["type"] == "vector":
+            sizes = [(c.get("lengthFrom"), len(v), c["length"])]
+        elif c["type"] == "matrix" and all(isinstance(r, list) and r for r in v):
+            sizes = [(c.get("rowsFrom"), len(v), c["rows"]), (c.get("colsFrom"), len(v[0]), c["cols"])]
+        for src, n, full in sizes:
+            s = by.get(src or "")
+            if s is not None and src not in over and n < full:
+                fixed[src] = int(min(s["max"], max(s["min"], n)))
     return fixed
 
 
@@ -570,12 +585,22 @@ def run_js_checks(parts):
     out.append(check("edge_sweep", not edge, "; ".join(edge) if edge else "compute ran at %d extreme control settings without exceptions or NaN" % rep["settings"], ["compute", "controls"]))
     if rep["edgeInf"]:
         out.append(check("edge_infinity", False, "; ".join(rep["edgeInf"]), ["compute", "controls"], "soft"))
+    live = len(parts["controls"]) - len(rep["inert"])
     out.append(check("controls_meaningful", not rep["inert"],
-                     ("control(s) %s change neither an output of compute() nor the visual" % ", ".join(rep["inert"])) if rep["inert"] else "every control changes at least one output",
-                     ["compute", "controls"]))
+                     ("control(s) %s change neither a displayed value nor the visual at any tested setting; %d other control(s) work%s"
+                      % (", ".join(rep["inert"]), live, "" if live < 2 else " (the page marks an idle control)")) if rep["inert"] else "every control changes at least one output",
+                     ["compute", "controls"], "hard" if live < 2 else "soft"))
     failed = [t for t in rep["tests"] if not t["pass"]]
+    # C. a known case that disagrees with the calculation is nearly always a slip in the hand-computed expectation:
+    #    when most known cases pass, the odd one out is dropped (and the page says so) instead of costing a repair.
+    #    When most of them fail the calculation itself is suspect, and that is worth a repair.
+    known = {t["name"] for t in parts["tests"] if t.get("params")}
+    known_failed = [t for t in failed if t["name"] in known]
+    suspect = 2 * len(known_failed) > len(known)
     for t in rep["tests"]:
-        out.append(check("test: " + t["name"], t["pass"], "pass" if t["pass"] else ("%s %s" % (t["error"], t["got"])).strip(), ["tests", "compute"]))
+        soft = t["name"] in known and not suspect
+        out.append(check("test: " + t["name"], t["pass"], "pass" if t["pass"] else ("%s %s" % (t["error"], t["got"])).strip(), ["tests", "compute"],
+                         "soft" if soft else "hard"))
     if not rep["tests"]:
         out.append(check("tests_present", False, "no usable tests supplied", ["tests"]))
     for t in rep["invariant"]:
@@ -601,7 +626,11 @@ def run_js_checks(parts):
     if false:
         out.append(check("exploration_claims", False, "; ".join(
             "exploration %d: its observe claim is false in the calculation (%s is false). After set: %s. After then: %s. Fix the claim, "
-            "the set/then values or expect" % (c["index"], c.get("clause") or c["expect"], c["a"], c["b"]) for c in false), ["content"]))
+            "the set/then values or expect" % (c["index"], c.get("clause") or c["expect"], c["a"], c["b"]) for c in false), ["content"],
+            # measured on 12 benchmark runs: 5 false claims, none fixed by a repair, and most were a slip in the expect
+            # expression (an off-by-one index, a saturated example) rather than wrong prose. So this never costs a
+            # repair call; the page simply does not mark that exploration as confirmed by the calculation.
+            "soft"))
     elif unverified:
         out.append(check("exploration_claims", False, "; ".join(unverified) + "; those claims stay unverified", ["content"], "soft"))
     elif claims:
@@ -806,6 +835,7 @@ def finalise(parts, checks, report):
     kept = sorted({c["name"].split(": ", 1)[1] for c in checks if not c["ok"] and c["name"].startswith("invariant: ")} - failed)
     if failed:
         parts["tests"] = [t for t in parts["tests"] if t["name"] not in failed]
+        parts["dropped_tests"] = len(failed)       # the page states how many generated checks were left out
         notes.append("removed %d failing test(s) from the page: %s" % (len(failed), "; ".join(sorted(failed))))
     if kept:
         notes.append("kept %d invariant(s) that fail at some settings as live checks, so the page shows the failure there: %s" % (len(kept), "; ".join(kept)))

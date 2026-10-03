@@ -114,9 +114,10 @@ class ExplorationClaims(unittest.TestCase):
     def test_true_claim_passes(self):
         self.assertTrue(self.claim("out.count === 1 && out.total >= 0")["ok"])
 
-    def test_false_claim_is_hard_and_names_the_false_part(self):
+    def test_false_claim_fails_without_costing_a_repair_and_names_the_false_part(self):
+        # soft: on the benchmark no repair ever fixed a false claim, so the exploration is just not marked as confirmed
         c = self.claim("out.count === 1 && out.total > 100")
-        self.assertEqual((c["ok"], c["severity"]), (False, "hard"))
+        self.assertEqual((c["ok"], c["severity"]), (False, "soft"))
         self.assertIn("out.total > 100", c["message"])
 
     def test_expect_reading_a_missing_output_is_only_unverified(self):

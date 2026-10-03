@@ -131,7 +131,8 @@ def build_html(parts, case):
     grounding += '<div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain">%s</ul><p style="margin-top:8px"><b>%s</b></p></div>' % (
         "".join("<li>%s</li>" % inline_html(s) for s in c["simplifications"]) or "<li>The numbers in the playground are small made-up inputs.</li>", DISCLAIMER)
 
-    data = {"controls": parts["controls"], "readouts": parts["readouts"], "tests": parts["tests"], "explorations": ex_data}
+    data = {"controls": parts["controls"], "readouts": parts["readouts"], "tests": parts["tests"], "explorations": ex_data,
+            "dropped": int(parts.get("dropped_tests") or 0)}
     fills = {
         "TITLE_TEXT": esc(re.sub(r"<[^>]+>", "", title)),
         "STYLE": read_template("style.css"),
