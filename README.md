@@ -88,6 +88,9 @@ one limitation or common misunderstanding, and a source-grounding section. Blue 
 hold the equation and verbatim quotes; dashed amber blocks marked **Our example / simplification** hold what the
 demo invents, plus a fixed disclaimer that the demo does not reproduce the paper's experimental results.
 
+Below the model's own visual the template adds automatic graphs: one chosen result plotted against each slider across
+its whole range, with the current setting marked. These need no model tokens; every point is a `compute()` call.
+
 Every number on the page comes from the generated `compute()` running in the browser on the current control
 values. `render()` only draws what `compute()` returned.
 
@@ -208,6 +211,11 @@ python agent.py --input examples/attention/case.json --output examples/attention
 - [`mini-racer`](https://pypi.org/project/mini-racer/) (ISC), an embedded V8 engine shipped as a pip wheel, to
   execute the generated JavaScript during checks.
 - `H.rng` uses the public-domain mulberry32 pseudo-random generator.
+- The page layout (navbar, hero with stat cards, centred section headings, numbered cards) is modelled on the
+  "Eduleb" HTML education template; no code, fonts or images from that template are included, the CSS was
+  written for this project.
+- `templates/aub_logo.png` is the American University of Beirut logo from aub.edu.lb, embedded in each page as a
+  data URI. It is the property of AUB and is used to identify the course this project was built for.
 - Everything else (pipeline, prompts, template, helper library, checker) was written for this project. The
   templates and helpers are generic; the repository contains no paper-specific answers or pages apart from the
   example output above, which the agent produced. The practice excerpts in `cases/` are short quotations from

@@ -3,136 +3,175 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scaled Dot-Product Attention, Step by Step</title>
+<title>Scaled Dot-Product Attention</title>
 <style>
+/* Layout modelled on the "Eduleb" education theme, in American University of Beirut colours. */
 :root {
-  --bg: #f3f4fb; --card: #ffffff; --card2: #f7f8fd; --fg: #171a2b; --muted: #5d6480; --line: #e2e5f1;
-  --primary: #4f46e5; --primary-2: #7c3aed; --soft: #eef0ff; --accent: #ea580c;
-  --paper: #1d4ed8; --paper-bg: #eaf1ff; --ours: #a16207; --ours-bg: #fff7e0;
-  --good: #15803d; --good-bg: #e7f6ec; --bad: #dc2626; --bad-bg: #fdecec;
-  --c1: #4f46e5; --c2: #ea580c; --c3: #059669; --c4: #c026d3; --c5: #0891b2; --c6: #e11d48;
-  --shadow: 0 1px 2px rgba(23, 26, 43, 0.05), 0 8px 24px rgba(23, 26, 43, 0.06);
+  --primary: #840132; --primary-dark: #5c0023; --soft: #f8e8ee; --soft-2: #fdf4f7;
+  --bg: #ffffff; --band: #faf7f8; --card: #ffffff; --card2: #fbf8f9;
+  --fg: #24121a; --muted: #64596a; --line: #eadfe4;
+  --accent: #d97706; --paper: #840132; --paper-bg: #f8e8ee; --ours: #8a5a00; --ours-bg: #fff6dd;
+  --good: #15803d; --good-bg: #e6f5ea; --bad: #c62828; --bad-bg: #fdecec;
+  --c1: #840132; --c2: #0e7490; --c3: #d97706; --c4: #6d28d9; --c5: #15803d; --c6: #475569;
+  --shadow: 0 10px 30px rgba(92, 0, 35, 0.08);
+  --head: "Jost", "Century Gothic", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c0f1d; --card: #151a2e; --card2: #1b213a; --fg: #e9ebf7; --muted: #9ba4c8; --line: #2a3154;
-    --primary: #8b93ff; --primary-2: #b18cff; --soft: #232a52; --accent: #fb923c;
-    --paper: #8ab6ff; --paper-bg: #14254a; --ours: #fbbf24; --ours-bg: #2f2609;
-    --good: #4ade80; --good-bg: #11301f; --bad: #f87171; --bad-bg: #3a1618;
-    --c1: #8b93ff; --c2: #fb923c; --c3: #34d399; --c4: #e879f9; --c5: #22d3ee; --c6: #fb7185;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.28);
-    color-scheme: dark;
-  }
-}
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 64px; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif; }
-main { max-width: 1180px; margin: 0 auto; padding: 0 20px 48px; }
-h1 { font-size: clamp(1.6rem, 3.4vw, 2.4rem); line-height: 1.15; margin: 14px 0 10px; letter-spacing: -0.02em; }
-h2 { font-size: 1.3rem; margin: 0 0 14px; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
-h2 .no { flex: none; width: 30px; height: 30px; border-radius: 9px; background: var(--soft); color: var(--primary); font-size: 0.95rem; display: grid; place-items: center; font-weight: 700; }
-h3 { font-size: 1rem; margin: 0 0 8px; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 84px; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.65 "DM Sans", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+h1, h2, h3 { font-family: var(--head); color: var(--fg); letter-spacing: -0.01em; }
+h1 { font-size: clamp(2rem, 4.4vw, 3.3rem); line-height: 1.12; margin: 18px 0 16px; font-weight: 700; }
+h1 .hl, h2 .hl { color: var(--primary); }
+h2 { font-size: clamp(1.5rem, 2.6vw, 2.1rem); margin: 0 0 8px; font-weight: 700; }
+h3 { font-size: 1.08rem; margin: 0 0 8px; }
 p { margin: 0 0 12px; }
 code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
-code { background: var(--soft); padding: 1px 5px; border-radius: 5px; }
+code { background: var(--soft); padding: 1px 6px; border-radius: 4px; }
 sub, sup { font-size: 0.72em; line-height: 0; }
 
-/* top navigation */
-nav.top { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
-nav.top div { max-width: 1180px; margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
-nav.top a { flex: none; color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 600; padding: 12px 12px; border-bottom: 2px solid transparent; }
-nav.top a:hover { color: var(--primary); border-bottom-color: var(--primary); }
+/* navbar */
+.navbar { position: sticky; top: 0; z-index: 30; background: var(--primary); box-shadow: 0 2px 14px rgba(0, 0, 0, 0.18); }
+.navbar .wrap { display: flex; align-items: center; gap: 22px; min-height: 72px; }
+.brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: #fff; flex: none; }
+.brand img { height: 50px; width: auto; display: block; }
+.brand span { font-family: var(--head); font-weight: 600; font-size: 1.02rem; padding-left: 14px; border-left: 1px solid rgba(255, 255, 255, 0.4); line-height: 1.2; }
+.links { display: flex; gap: 2px; margin-left: auto; overflow-x: auto; scrollbar-width: none; }
+.links a { flex: none; color: #fff; text-decoration: none; font-family: var(--head); font-size: 0.84rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 10px; border-radius: 4px; opacity: 0.92; }
+.links a:hover { background: rgba(255, 255, 255, 0.16); opacity: 1; }
+.btn { display: inline-block; font-family: var(--head); font-weight: 600; font-size: 0.98rem; text-decoration: none; padding: 13px 26px; border-radius: 3px; background: var(--primary); color: #fff; border: 2px solid var(--primary); cursor: pointer; }
+.btn:hover { background: var(--primary-dark); border-color: var(--primary-dark); }
+.btn.ghost { background: transparent; color: var(--primary); }
+.btn.ghost:hover { background: var(--soft); }
+.navbar .btn { background: #fff; color: var(--primary); border-color: #fff; padding: 10px 20px; flex: none; }
+.navbar .btn:hover { background: var(--soft); }
 
 /* hero */
-header.hero { margin: 22px 0 18px; padding: 30px 32px; border-radius: 20px; color: #fff; background: linear-gradient(135deg, #4338ca 0%, #6d28d9 55%, #9333ea 100%); box-shadow: var(--shadow); }
-header.hero .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-header.hero .chip { font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.28); }
-header.hero .chip.solid { background: #fff; color: #4338ca; border-color: #fff; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.72rem; padding-top: 5px; }
-header.hero p { margin: 0; opacity: 0.9; font-size: 0.98rem; }
+header.hero { position: relative; overflow-x: clip; padding: 64px 0 0; background:
+  radial-gradient(620px 420px at 8% 30%, #fde9d2 0%, transparent 70%),
+  radial-gradient(560px 460px at 46% 12%, #fff7d6 0%, transparent 70%),
+  radial-gradient(640px 520px at 92% 40%, #f6dbe5 0%, transparent 72%),
+  radial-gradient(520px 380px at 40% 100%, #fbe1e6 0%, transparent 70%), #fffdfb; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 44px; align-items: center; padding-bottom: 96px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 0.8rem; font-weight: 600; padding: 5px 14px; border-radius: 999px; background: #fff; color: var(--fg); border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(92, 0, 35, 0.05); }
+.chip.solid { background: var(--primary); color: #fff; border-color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.7rem; padding-top: 6px; }
+.hero .sub { color: var(--muted); font-size: 1.05rem; max-width: 56ch; }
+.hero .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.hero-card { position: relative; background: #fff; border-radius: 14px; padding: 28px 26px 44px; box-shadow: 0 24px 60px rgba(92, 0, 35, 0.16); border-top: 5px solid var(--primary); }
+.hero-card .formula { margin: 14px 0 6px; }
+.hero-card .badge { position: absolute; right: -14px; bottom: -34px; background: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 12px 30px rgba(92, 0, 35, 0.18); display: flex; align-items: center; gap: 10px; font-size: 0.86rem; color: var(--muted); }
+.hero-card .badge b { font-family: var(--head); font-size: 1.5rem; color: var(--primary); line-height: 1; }
+.hero .dot { position: absolute; border-radius: 50%; pointer-events: none; }
+.hero .dot.a { width: 18px; height: 18px; background: var(--primary); opacity: 0.55; left: 49%; bottom: 150px; }
+.hero .dot.b { width: 26px; height: 26px; border: 3px solid var(--primary); opacity: 0.4; right: 5%; top: 90px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; transform: translateY(50%); margin-top: -70px; }
+.stat { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; display: flex; align-items: center; gap: 16px; box-shadow: var(--shadow); }
+.stat .ico { flex: none; width: 50px; height: 50px; border-radius: 50%; background: var(--soft); color: var(--primary); display: grid; place-items: center; }
+.stat:nth-child(2) .ico { background: #e3f3f6; color: var(--c2); } .stat:nth-child(3) .ico { background: #fdf0d9; color: var(--accent); } .stat:nth-child(4) .ico { background: #e6f5ea; color: var(--good); }
+.stat b { display: block; font-family: var(--head); font-size: 1.9rem; line-height: 1.1; }
+.stat span { color: var(--muted); font-size: 0.92rem; }
 
-section { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px; margin: 18px 0; box-shadow: var(--shadow); }
-.lead { font-size: 1.1rem; line-height: 1.65; }
-.why { background: var(--soft); border-radius: 12px; padding: 12px 16px; }
-.why b { color: var(--primary); }
+/* sections */
+main { padding-top: 96px; }
+section { padding: 56px 0; }
+section.band { background: var(--band); }
+.sec-head { text-align: center; max-width: 760px; margin: 0 auto 34px; }
+.sec-head .eyebrow { display: inline-block; font-family: var(--head); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--primary); background: var(--soft); border-radius: 999px; padding: 4px 16px; margin-bottom: 12px; }
+.sec-head p { color: var(--muted); margin: 0; }
+.lead { font-size: 1.12rem; line-height: 1.7; }
+.idea-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 28px; align-items: start; }
+.why { background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: 12px; padding: 20px 22px; box-shadow: var(--shadow); margin: 0; }
+.why b { display: block; font-family: var(--head); font-size: 1.1rem; color: var(--fg); margin-bottom: 6px; }
 
-.tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; border: 1px solid; white-space: nowrap; }
-.tag.paper { color: var(--paper); background: var(--card); border-color: var(--paper); }
-.tag.ours { color: var(--ours); background: var(--card); border-color: var(--ours); border-style: dashed; }
-.from-paper { border-left: 5px solid var(--paper); background: var(--paper-bg); border-radius: 12px; padding: 14px 18px; margin: 14px 0 4px; }
-.from-ours { border: 1.5px dashed var(--ours); background: var(--ours-bg); border-radius: 12px; padding: 14px 18px; margin: 14px 0 4px; }
-.formula { font-size: 1.45rem; line-height: 1.7; font-family: Cambria, "Cambria Math", "Times New Roman", serif; margin: 10px 0 2px; overflow-x: auto; text-align: center; }
-blockquote { margin: 10px 0 0; padding-left: 14px; border-left: 3px solid var(--paper); font-style: italic; }
-.cite { color: var(--muted); }
+.tag { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 11px; border-radius: 999px; border: 1px solid; white-space: nowrap; vertical-align: middle; }
+.tag.paper { color: #fff; background: var(--primary); border-color: var(--primary); }
+.tag.ours { color: var(--ours); background: #fff; border-color: var(--ours); border-style: dashed; }
+.from-paper { border-left: 5px solid var(--primary); background: var(--paper-bg); border-radius: 10px; padding: 16px 20px; margin: 16px 0 4px; }
+.from-ours { border: 1.5px dashed var(--ours); background: var(--ours-bg); border-radius: 10px; padding: 16px 20px; margin: 16px 0 4px; }
+.formula { font-size: 1.4rem; line-height: 1.75; font-family: Cambria, "Cambria Math", "Times New Roman", serif; margin: 10px 0 2px; overflow-x: auto; text-align: center; color: var(--fg); }
+blockquote { margin: 12px 0 0; padding-left: 14px; border-left: 3px solid var(--primary); font-style: italic; }
 
+/* symbols: a grid of badge + meaning rows */
 table { border-collapse: collapse; width: 100%; }
-th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 tr:last-child td { border-bottom: 0; }
-th { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-td.sym { width: 1%; white-space: nowrap; padding-right: 20px; }
-td.sym span { display: inline-block; min-width: 46px; text-align: center; font-family: Cambria, "Cambria Math", "Times New Roman", serif; font-size: 1.15rem; background: var(--soft); color: var(--primary); border-radius: 9px; padding: 3px 12px; }
+#symbols table { background: #fff; border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); display: block; padding: 6px 18px; }
+#symbols tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 30px; }
+#symbols thead { display: none; }
+#symbols tr { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); padding: 10px 4px; }
+#symbols td { border: 0; padding: 0; }
+td.sym { flex: none; }
+td.sym span { display: inline-block; min-width: 62px; text-align: center; font-family: Cambria, "Cambria Math", "Times New Roman", serif; font-size: 1.15rem; background: var(--soft); color: var(--primary); border-radius: 999px; padding: 5px 16px; white-space: nowrap; }
 
-ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
-ol.steps li { counter-increment: s; position: relative; padding: 4px 0 18px 50px; }
-ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 32px; height: 32px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; display: grid; place-items: center; font-size: 0.92rem; }
-ol.steps li::after { content: ""; position: absolute; left: 15px; top: 36px; bottom: 2px; width: 2px; background: var(--line); }
-ol.steps li:last-child { padding-bottom: 0; } ol.steps li:last-child::after { display: none; }
+/* steps: numbered cards like the theme's 01-04 feature row */
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; }
+ol.steps li { flex: 1 1 250px; max-width: 370px; counter-increment: s; background: #fff; border-radius: 12px; padding: 26px 24px 22px; box-shadow: var(--shadow); border: 1px solid var(--line); }
+ol.steps li::before { content: counter(s, decimal-leading-zero); display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; margin-bottom: 14px; font-family: var(--head); font-weight: 700; font-size: 1.35rem; background: var(--soft); color: var(--primary); }
+ol.steps li:nth-child(4n+2)::before { background: #e3f3f6; color: var(--c2); }
+ol.steps li:nth-child(4n+3)::before { background: #fdf0d9; color: var(--accent); }
+ol.steps li:nth-child(4n+4)::before { background: #e6f5ea; color: var(--good); }
 
 /* playground */
-#playground { border-color: color-mix(in srgb, var(--primary) 35%, var(--line)); }
-.play { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 22px; align-items: start; }
-.controls { position: sticky; top: 62px; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; max-height: calc(100vh - 80px); overflow-y: auto; }
-.kicker { color: var(--muted); font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin: 0 0 12px; }
+.play { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 24px; align-items: start; }
+.controls { position: sticky; top: 92px; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--primary); border-radius: 12px; padding: 18px; max-height: calc(100vh - 108px); overflow-y: auto; box-shadow: var(--shadow); }
+.kicker { font-family: var(--head); color: var(--primary); font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 12px; }
 .ctl { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.ctl > label, .ctl > .lbl { display: block; font-weight: 600; font-size: 0.92rem; margin-bottom: 8px; line-height: 1.35; }
+.ctl > label, .ctl > .lbl { display: block; font-weight: 600; font-size: 0.93rem; margin-bottom: 8px; line-height: 1.35; }
 .ctl .row { display: flex; align-items: center; gap: 10px; }
-.ctl output { flex: none; min-width: 3.4em; text-align: center; font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary); background: var(--soft); border-radius: 8px; padding: 2px 8px; }
+.ctl output { flex: none; min-width: 3.4em; text-align: center; font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary); background: var(--soft); border-radius: 6px; padding: 2px 8px; }
 .ctl input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 22px; background: transparent; cursor: pointer; }
 .ctl input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--line); }
-.ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: var(--primary); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--primary); }
+.ctl input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: var(--primary); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--primary); }
 .ctl input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--line); }
-.ctl input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid var(--card); }
-.ctl input[type=number], .ctl select { font: inherit; font-size: 0.92rem; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
-.ctl input[type=number]:focus, .ctl select:focus, .ctl input[type=range]:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.ctl input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); border: 3px solid #fff; }
+.ctl input[type=number], .ctl select, .sweep-bar select { font: inherit; font-size: 0.92rem; color: var(--fg); background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.ctl input[type=number]:focus, .ctl select:focus, .ctl input[type=range]:focus-visible, .sweep-bar select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
 .ctl input[type=number] { width: 5.4em; }
 .ctl select { width: 100%; }
 .ctl .cells { display: grid; gap: 6px; justify-content: start; }
 .ctl .cells input { width: 3.9em; padding: 5px 4px; text-align: center; }
 .ctl .cells span { display: block; font-size: 0.7rem; color: var(--muted); text-align: center; }
-.ctl input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; width: 44px; height: 24px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; transition: background 0.15s; margin: 0; }
+.ctl input[type=checkbox] { -webkit-appearance: none; appearance: none; flex: none; width: 44px; height: 24px; border-radius: 999px; background: #d9cdd2; position: relative; cursor: pointer; transition: background 0.15s; margin: 0; }
 .ctl input[type=checkbox]::before { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); }
 .ctl input[type=checkbox]:checked { background: var(--primary); }
 .ctl input[type=checkbox]:checked::before { transform: translateX(20px); }
-button { font: inherit; font-size: 0.86rem; font-weight: 600; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 7px 13px; cursor: pointer; }
-button:hover { border-color: var(--primary); color: var(--primary); }
-button.try { color: #fff; background: var(--primary); border-color: var(--primary); padding: 9px 16px; }
-button.try:hover { filter: brightness(1.1); color: #fff; }
+button { font: inherit; font-family: var(--head); font-size: 0.88rem; font-weight: 600; color: var(--primary); background: #fff; border: 1.5px solid var(--primary); border-radius: 3px; padding: 7px 14px; cursor: pointer; }
+button:hover { background: var(--soft); }
+button.try { color: #fff; background: var(--primary); padding: 11px 20px; font-size: 0.95rem; }
+button.try:hover { background: var(--primary-dark); }
 #pg-reset { width: 100%; }
 
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 14px; }
-.tile { background: var(--card2); border: 1px solid var(--line); border-left: 4px solid var(--primary); border-radius: 12px; padding: 10px 14px; min-width: 0; }
-.tile .k { color: var(--muted); font-size: 0.8rem; font-weight: 600; line-height: 1.3; }
-.tile .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.tile { background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--primary); border-radius: 10px; padding: 12px 16px; min-width: 0; box-shadow: var(--shadow); }
+.tile .k { color: var(--muted); font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+.tile .v { font-family: var(--head); font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; overflow-wrap: anywhere; }
 .tile .v small { font-size: 0.85rem; font-weight: 600; color: var(--muted); margin-left: 4px; }
 
 #pg-visual { min-height: 140px; }
 .pg-svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .pg-svg text { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; }
-.pg-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 14px; align-items: stretch; }
-.pg-cell { min-width: 0; background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; align-items: center; overflow-x: auto; }
+.pg-grid { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.pg-cell { min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; align-items: center; overflow-x: auto; box-shadow: var(--shadow); }
 .pg-cell.wide { grid-column: 1 / -1; }
-.pg-cell > .pg-grid > .pg-cell { background: transparent; border: 0; padding: 0; }
-#pg-visual > .pg-svg { background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 12px; }
+.pg-cell > .pg-grid > .pg-cell { background: transparent; border: 0; padding: 0; box-shadow: none; }
+#pg-visual > .pg-svg { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
 .pg-note { color: var(--muted); font-size: 0.88rem; margin: 6px 0; text-align: center; }
-.err { color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 10px; padding: 10px 14px; margin: 0 0 12px; font-size: 0.92rem; }
+.err { color: var(--bad); background: var(--bad-bg); border: 1px solid var(--bad); border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; font-size: 0.92rem; }
 
-.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; margin-top: 16px; }
-.box { background: var(--card2); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.sub-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; margin: 30px 0 14px; }
+.sub-head h3 { font-size: 1.25rem; margin: 0; }
+.sub-head p { margin: 2px 0 0; color: var(--muted); font-size: 0.92rem; }
+.sweep-bar label { font-weight: 600; font-size: 0.9rem; margin-right: 8px; }
+
+.results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; margin-top: 18px; }
+.box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; box-shadow: var(--shadow); }
 #pg-readouts td { padding: 8px 6px; font-size: 0.92rem; }
 #pg-readouts td:first-child { width: 46%; }
 #pg-readouts td.val { text-align: right; }
 .pills { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; margin: 2px 0; }
-.pill { font-family: ui-monospace, Consolas, monospace; font-size: 0.84rem; font-variant-numeric: tabular-nums; background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 1px 7px; }
+.pill { font-family: ui-monospace, Consolas, monospace; font-size: 0.84rem; font-variant-numeric: tabular-nums; background: var(--soft-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; }
 .num { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-variant-numeric: tabular-nums; }
 .unit { color: var(--muted); font-size: 0.82rem; margin-left: 4px; }
 .checks { list-style: none; margin: 0; padding: 0; }
@@ -144,63 +183,89 @@ button.try:hover { filter: brightness(1.1); color: #fff; }
 .checks .when { color: var(--muted); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; overflow-wrap: anywhere; }
 .checks button { font-size: 0.76rem; padding: 3px 9px; }
 
-.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.card { border: 1px solid var(--line); border-top: 4px solid var(--primary); border-radius: 14px; padding: 16px 18px; background: var(--card2); display: flex; flex-direction: column; }
-.card:nth-child(2) { border-top-color: var(--accent); }
-.card h3 { font-size: 1.05rem; }
-.card h3 small { display: block; color: var(--muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 2px; }
-.card dl { margin: 0 0 14px; flex: 1; }
-.card dt { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary); background: var(--soft); border-radius: 6px; padding: 1px 8px; margin-top: 12px; }
-.card dd { margin: 5px 0 0; }
-.limit { border-left: 6px solid var(--accent); }
-.limit h2 .no { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+/* explorations */
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.card { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 26px 26px 24px; background: #fff; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+.card h3 { font-size: 1.2rem; }
+.card h3 small { display: block; width: 56px; height: 56px; border-radius: 50%; background: var(--soft); color: var(--primary); font-family: var(--head); font-size: 0; margin-bottom: 12px; position: relative; }
+.card h3 small::after { content: "01"; position: absolute; inset: 0; display: grid; place-items: center; font-size: 1.3rem; font-weight: 700; }
+.card:nth-child(2) h3 small { background: #e3f3f6; color: var(--c2); } .card:nth-child(2) h3 small::after { content: "02"; }
+.card dl { margin: 0 0 18px; flex: 1; }
+.card dt { display: inline-block; font-family: var(--head); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); background: var(--soft); border-radius: 999px; padding: 2px 12px; margin-top: 14px; }
+.card dd { margin: 6px 0 0; }
+.limit-box { max-width: 900px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--accent); border-radius: 12px; padding: 22px 26px; box-shadow: var(--shadow); font-size: 1.05rem; }
+.limit-box p { margin: 0; }
+.ground { max-width: 980px; margin: 0 auto; }
 .muted { color: var(--muted); } .small { font-size: 0.86rem; }
 ul.plain { margin: 8px 0 0; padding-left: 20px; }
 ul.plain li { margin: 4px 0; }
-footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top: 22px; }
-@media (max-width: 900px) {
-  .play { grid-template-columns: minmax(0, 1fr); }
+footer { background: var(--primary); color: #fff; margin-top: 40px; padding: 30px 0; font-size: 0.92rem; }
+footer .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+footer img { height: 54px; width: auto; }
+footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
+@media (max-width: 980px) {
+  .hero-grid, .idea-grid, .play { grid-template-columns: minmax(0, 1fr); }
   .controls { position: static; max-height: none; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .links { display: none; }
+  .hero-card .badge { right: 10px; }
 }
 @media (max-width: 720px) {
-  main { padding: 0 12px 36px; }
-  .cards, .results, .pg-grid { grid-template-columns: minmax(0, 1fr); }
-  section { padding: 18px 16px; }
-  header.hero { padding: 22px 18px; }
-  .formula { font-size: 1.15rem; }
+  .wrap { padding: 0 14px; }
+  .cards, .results, .pg-grid, #symbols tbody { grid-template-columns: minmax(0, 1fr); }
+  .stats { gap: 12px; } .stat { padding: 14px; gap: 10px; } .stat b { font-size: 1.5rem; } .stat .ico { width: 40px; height: 40px; }
+  section { padding: 40px 0; }
+  header.hero { padding-top: 36px; }
+  .brand span, .hero .dot, .hero-card .badge { display: none; }
+  .hero-card { padding-bottom: 26px; }
+  .hero-grid { padding-bottom: 84px; gap: 26px; }
+  .stat { min-width: 0; } .stat span { font-size: 0.82rem; }
+  .formula { font-size: 1.12rem; }
 }
 
 </style>
 </head>
 <body>
-<nav class="top" aria-label="Sections"><div>
-  <a href="#idea">The idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explorations</a><a href="#limitation">Keep in mind</a><a href="#grounding">Source</a>
+<nav class="navbar" aria-label="Sections"><div class="wrap">
+  <a class="brand" href="#top"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABkCAYAAAA8AQ3AAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDcuMi1jMDAwIDc5LjU2NmViYzViNCwgMjAyMi8wNS8wOS0wODoyNTo1NSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDIzLjQgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjY1ODFGQ0M2MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjY1ODFGQ0M3MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6NjU4MUZDQzQyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6NjU4MUZDQzUyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6mcWE0AAA6O0lEQVR42uyd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" alt="American University of Beirut"><span>Paper to<br>Playground</span></a>
+  <div class="links"><a href="#idea">Idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explore</a><a href="#limitation">Limits</a><a href="#grounding">Source</a></div>
+  <a class="btn" href="#playground">Open playground</a>
 </div></nav>
-<main>
-<header class="hero">
+<header class="hero" id="top">
+  <span class="dot a"></span><span class="dot b"></span>
+  <div class="wrap hero-grid">
+    <div>
 <div class="chips"><span class="chip solid">From the paper</span><span class="chip">Attention Is All You Need</span><span class="chip">§3.2.1</span><span class="chip">Eq. (1)</span></div>
-<h1>Scaled Dot-Product Attention, Step by Step</h1>
-<p>Written for: Engineering undergraduates who know basic linear algebra (vectors, matrices, dot products) but have not studied transformers.</p>
+<h1><span class="hl">Scaled Dot-Product</span> Attention</h1>
+<p class="sub">Written for: Engineering undergraduates who know basic linear algebra (vectors, matrices, dot products) but have not studied transformers.</p>
+<div class="actions"><a class="btn" href="#playground">Open the playground</a><a class="btn ghost" href="#grounding">See the source</a></div>
+    </div>
+    <div>
+<div class="hero-card"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div><p class="muted small" style="margin:10px 0 0;text-align:center">Attention Is All You Need · §3.2.1 · Eq. (1)</p><div class="badge"><b>6</b> live checks<br>on the calculation</div></div>
+    </div>
+  </div>
+  <div class="wrap">
+<div class="stats"><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span><div><b>5</b><span>interactive controls</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-7"/></svg></span><div><b>8</b><span>live computed values</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg></span><div><b>6</b><span>live checks</span></div></div><div class="stat"><span class="ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></span><div><b>2</b><span>guided explorations</span></div></div></div>
+  </div>
 </header>
+<main>
+<section id="idea"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Start here</span><h2>The <span class="hl">idea</span></h2><p>What the paper proposes, in plain words, and why it matters.</p></div>
+<div class="idea-grid"><div><p class="lead">A query asks a question; each key is compared with it by a dot product. Those raw scores are divided by √d<sub>k</sub> and pushed through a softmax, giving weights that sum to 1. The output is the weighted average of the value rows, so the query pulls most strongly on the values whose keys matched it best.</p></div><p class="why"><b>Why it matters</b>This single equation is the core of the transformer: it lets every position gather information from every other position in one matrix multiply, and the 1/√d<sub>k</sub> factor keeps the softmax out of its saturated, tiny-gradient region.</p></div>
+</div></section>
 
-<section id="idea">
-<h2><span class="no">1</span>The idea</h2>
-<p class="lead">Each query is compared with every key by a dot product. Those raw scores are divided by √d<sub>k</sub>, turned into weights by a softmax, and used to average the value vectors. The result is one output vector per query: a weighted blend of the rows of V.</p><p class="why"><b>Why it matters.</b> Scaling keeps the softmax out of the saturated region where gradients nearly vanish, which is what makes dot-product attention work at large d<sub>k</sub>.</p><div class="from-paper"><span class="tag paper">From the paper · Eq. (1)</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div></div>
-</section>
+<section id="symbols" class="band"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Notation</span><h2><span class="hl">Symbols</span> used on this page</h2><p>Every symbol, written the way the paper writes it.</p></div>
+<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym"><span>Q</span></td><td>matrix of queries, one row per query, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>K</span></td><td>matrix of keys, one row per key, each of dimension d<sub>k</sub></td></tr><tr><td class="sym"><span>V</span></td><td>matrix of values, one row per key, each of dimension d<sub>v</sub></td></tr><tr><td class="sym"><span>d<sub>k</sub></span></td><td>dimension of the queries and keys, i.e. the number of columns of Q and K</td></tr><tr><td class="sym"><span>d<sub>v</sub></span></td><td>dimension of the values, i.e. the number of columns of V</td></tr><tr><td class="sym"><span>QK<sup>T</sup></span></td><td>matrix of raw dot products between every query and every key</td></tr><tr><td class="sym"><span>√d<sub>k</sub></span></td><td>the scaling divisor that counteracts large dot products</td></tr><tr><td class="sym"><span>softmax</span></td><td>applied to each row, turning scores into non-negative weights that sum to 1</td></tr></tbody></table>
+</div></section>
 
-<section id="symbols">
-<h2><span class="no">2</span>Symbols</h2>
-<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody><tr><td class="sym"><span>Q</span></td><td>matrix of queries, one row per query, d<sub>k</sub> columns</td></tr><tr><td class="sym"><span>K</span></td><td>matrix of keys, one row per key, d<sub>k</sub> columns</td></tr><tr><td class="sym"><span>V</span></td><td>matrix of values, one row per key, d<sub>v</sub> columns</td></tr><tr><td class="sym"><span>d<sub>k</sub></span></td><td>dimension of each query and key vector</td></tr><tr><td class="sym"><span>QK<sup>T</sup></span></td><td>matrix of raw dot-product scores, one row per query, one column per key</td></tr><tr><td class="sym"><span>softmax</span></td><td>applied to each row of scores, turning it into non-negative weights that sum to 1</td></tr><tr><td class="sym"><span>√d<sub>k</sub></span></td><td>the scaling divisor that keeps score magnitudes near 1</td></tr></tbody></table>
-</section>
+<section id="how"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Mechanism</span><h2><span class="hl">How it works</span></h2><p>The calculation, one step at a time.</p></div>
+<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: each entry is the dot product of one query with one key.</li><li>Divide every score by √d<sub>k</sub> (this is the scaling toggle).</li><li>Apply softmax to each row of the scaled scores to get the attention weights.</li><li>Multiply the weights by V: each output row is a weighted sum of the rows of V.</li></ol>
+</div></section>
 
-<section id="how">
-<h2><span class="no">3</span>How it works</h2>
-<ol class="steps"><li>Form the raw scores S = QK<sup>T</sup>: entry (i, j) is the dot product of query i with key j.</li><li>Divide every score by √d<sub>k</sub> (this is the scaling toggle).</li><li>Apply softmax to each row of the scaled scores to get the attention weights.</li><li>Multiply the weights by V: output row i is the weighted sum of the rows of V.</li></ol>
-</section>
-
-<section id="playground">
-<h2><span class="no">4</span>Interactive playground <span class="tag ours">Our example</span></h2>
-<p class="muted small">Small made-up inputs chosen for clarity. Change any control: the picture, the values and the checks are recalculated immediately.</p>
+<section id="playground" class="band"><div class="wrap">
+<div class="sec-head"><span class="tag ours">Our example</span><h2>Interactive <span class="hl">playground</span></h2><p>Small made-up inputs chosen for clarity. Change any control: the picture, the graphs, the values and the checks are recalculated immediately.</p></div>
 <div class="play">
   <aside class="controls">
     <p class="kicker">Controls</p>
@@ -211,6 +276,14 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top
     <div id="pg-error" class="err" hidden></div>
     <div id="pg-tiles" class="tiles"></div>
     <div id="pg-visual"></div>
+    <div id="pg-sweep-wrap" hidden>
+      <div class="sub-head">
+        <div><h3>How each control changes the result</h3>
+        <p>Each graph sweeps one control across its whole range while the others stay where you set them. The dot is the current setting.</p></div>
+        <div class="sweep-bar"><label for="pg-sweep-out">Result to plot</label><select id="pg-sweep-out"></select></div>
+      </div>
+      <div id="pg-sweep"></div>
+    </div>
     <div class="results">
       <div class="box">
         <p class="kicker">Intermediate and final values</p>
@@ -223,27 +296,31 @@ footer { color: var(--muted); font-size: 0.85rem; text-align: center; margin-top
     </div>
   </div>
 </div>
-</section>
+</div></section>
 
-<section id="explore">
-<h2><span class="no">5</span>Guided explorations</h2>
-<div class="cards"><div class="card"><h3><small>Exploration 1</small>Equal scores: uniform attention</h3><dl><dt>Change</dt><dd>Set the scaling toggle off and make all keys identical, so every score in a row is the same.</dd><dt>Observe</dt><dd>Every weight becomes 1/n and each output row is the plain average of the rows of V.</dd><dt>Why</dt><dd>Softmax of a constant vector is uniform, so the weighted sum reduces to the mean of V.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;scale&quot;: false, &quot;K&quot;: [[1, 0], [1, 0], [1, 0]]}">Try it in the playground &#9654;</button></p></div><div class="card"><h3><small>Exploration 2</small>One dominant score</h3><dl><dt>Change</dt><dd>Keep scaling on, then turn it off, with one key much better aligned to the query than the others.</dd><dt>Observe</dt><dd>With scaling the weights stay spread out; without it the largest weight jumps toward 1 and the output collapses onto a single row of V.</dd><dt>Why</dt><dd>Dividing by √d<sub>k</sub> shrinks the score gaps before the exponential, so softmax stays in a region with usable gradients.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;scale&quot;: false, &quot;Q&quot;: [[2, 2], [0, 0]], &quot;K&quot;: [[2, 2], [-2, -2], [0, 0]]}">Try it in the playground &#9654;</button></p></div></div>
-</section>
+<section id="explore"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Try it yourself</span><h2>Guided <span class="hl">explorations</span></h2><p>Two short experiments: what to change, what to watch, and why it happens.</p></div>
+<div class="cards"><div class="card"><h3><small>Exploration 1</small>Equal scores vs. one dominant score</h3><dl><dt>Change</dt><dd>Set the query to [2,0,0,0] and the keys so that one key clearly matches it, then compare with a query that matches all keys equally.</dd><dt>Observe</dt><dd>Watch the weight bars: with a dominant key one bar approaches 1 and the others shrink toward 0; with equal scores all bars sit near 1/n.</dd><dt>Why</dt><dd>Softmax exponentiates the scores, so a gap of a few units in QK<sup>T</sup>/√d<sub>k</sub> becomes a large ratio between weights.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;q&quot;: [2, 0, 0, 0], &quot;k&quot;: [[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 2]], &quot;scaling&quot;: true}">Try it in the playground &#9654;</button></p></div><div class="card"><h3><small>Exploration 2</small>Turn the scaling off</h3><dl><dt>Change</dt><dd>Toggle the 1/√d<sub>k</sub> scaling off while keeping the same Q and K.</dd><dt>Observe</dt><dd>The raw scores stay the same but the weights become far more peaked: the largest weight jumps toward 1 and the others collapse.</dd><dt>Why</dt><dd>Without dividing by √d<sub>k</sub>, the scores are √d<sub>k</sub> times larger, so the softmax saturates and its gradients become extremely small.</dd></dl><p style="margin:0"><button type="button" class="try" data-set="{&quot;scaling&quot;: false}">Try it in the playground &#9654;</button></p></div></div>
+</div></section>
 
-<section id="limitation" class="limit">
-<h2><span class="no">!</span>Keep in mind</h2>
-<p>The scaling factor only controls the magnitude of the scores; it does not change which key is most similar to a query, and it cannot fix a genuinely uninformative query.</p>
-</section>
+<section id="limitation" class="band"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Keep in mind</span><h2>A <span class="hl">limitation</span> to remember</h2><p>Where this explanation stops being true.</p></div>
+<div class="limit-box">
+<p>The scaling only matters when the dot products are large; for small d<sub>k</sub> or small entries the scaled and unscaled weights look almost identical, which is exactly why the paper says the two mechanisms perform similarly for small d<sub>k</sub>.</p>
+</div>
+</div></section>
 
-<section id="grounding">
-<h2><span class="no">6</span>Source grounding</h2>
-<p class="lead"><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div><blockquote>“We compute the dot products of the query with all keys, divide each by √d<sub>k</sub>, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Dot-product attention is identical to our algorithm, except for the scaling factor of 1/√d<sub>k</sub>.”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d<sub>k</sub>.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>Q, K and V are tiny hand-editable matrices, not learned projections of real embeddings.</li><li>d<sub>k</sub> is set by a slider and the matrices are truncated to that many columns; the paper uses d<sub>k</sub> = 64.</li><li>The demo shows a single attention head with no masking, dropout or multi-head concatenation.</li><li>Softmax is computed in plain floating point with no numerical-stability tricks beyond subtracting the row maximum.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
-</section>
-
-<footer>All values computed live in your browser. This page works offline and loads nothing from the network.</footer>
+<section id="grounding"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Source</span><h2>Source <span class="hl">grounding</span></h2><p>What comes from the paper, and what is our own example.</p></div>
+<div class="ground">
+<p class="lead"><b>Attention Is All You Need</b>, §3.2.1, Eq. (1)</p><p class="muted small mono">https://arxiv.org/html/1706.03762v7</p><div class="from-paper"><span class="tag paper">From the paper</span><div class="formula">Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V</div><blockquote>“We compute the dot products of the query with all keys, divide each by √d<sub>k</sub>, and apply a softmax function to obtain the weights on the values.”</blockquote><blockquote>“Attention(Q, K, V) = softmax(QK<sup>T</sup> / √d<sub>k</sub>) V”</blockquote><blockquote>“To counteract this effect, we scale the dot products by 1/√d<sub>k</sub>.”</blockquote></div><div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain"><li>The demo uses one query row and a handful of keys and values with small integer entries; the paper uses full matrices of learned projections.</li><li>The paper's d<sub>k</sub> is 64 in the base model; here d<sub>k</sub> is a small slider so the numbers stay readable.</li><li>The demo shows the softmax and the weighted sum directly rather than any trained network, so no experimental results are reproduced.</li></ul><p style="margin-top:8px"><b>This is a small illustrative demo; it does not reproduce the paper's experimental results.</b></p></div>
+</div>
+</div></section>
 </main>
+<footer><div class="wrap"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAABkCAYAAAA8AQ3AAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDcuMi1jMDAwIDc5LjU2NmViYzViNCwgMjAyMi8wNS8wOS0wODoyNTo1NSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIDIzLjQgKFdpbmRvd3MpIiB4bXBNTTpJbnN0YW5jZUlEPSJ4bXAuaWlkOjY1ODFGQ0M2MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0IiB4bXBNTTpEb2N1bWVudElEPSJ4bXAuZGlkOjY1ODFGQ0M3MkFBNzExRURBOUY3OUNBQzVBN0Y0MDY0Ij4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6NjU4MUZDQzQyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiIHN0UmVmOmRvY3VtZW50SUQ9InhtcC5kaWQ6NjU4MUZDQzUyQUE3MTFFREE5Rjc5Q0FDNUE3RjQwNjQiLz4gPC9yZGY6RGVzY3JpcHRpb24+IDwvcmRmOlJERj4gPC94OnhtcG1ldGE+IDw/eHBhY2tldCBlbmQ9InIiPz6mcWE0AAA6O0lEQVR42uyd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" alt="American University of Beirut">
+<p>All values computed live in your browser. This page works offline and loads nothing from the network.</p></div></footer>
 
-<script type="application/json" id="pg-data">{"controls": [{"id": "Q", "type": "matrix", "label": "Queries Q (rows = queries, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0], [0, 1]], "rows": 2, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "K", "type": "matrix", "label": "Keys K (rows = keys, cols = d\u003csub>k\u003c/sub>)", "default": [[1, 0], [0, 1], [1, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "V", "type": "matrix", "label": "Values V (rows = keys, cols = d\u003csub>v\u003c/sub>)", "default": [[1, 0], [0, 1], [1, 1]], "rows": 3, "cols": 2, "min": -3, "max": 3, "step": 0.5}, {"id": "dk", "type": "slider", "label": "d\u003csub>k\u003c/sub> (columns of Q and K used)", "default": 2, "min": 1, "max": 2, "step": 1}, {"id": "scale", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}], "readouts": [{"key": "divisor", "label": "Scaling divisor 1/√d\u003csub>k\u003c/sub> applied", "digits": 3, "unit": ""}, {"key": "S", "label": "Raw scores QKᵀ", "digits": 2, "unit": ""}, {"key": "scaled", "label": "Scaled scores", "digits": 2, "unit": ""}, {"key": "weights", "label": "Attention weights (softmax rows)", "digits": 3, "unit": ""}, {"key": "rowSums", "label": "Weight row sums (should be 1)", "digits": 3, "unit": ""}, {"key": "out", "label": "Output = weights · V", "digits": 3, "unit": ""}, {"key": "maxWeight", "label": "Largest weight in the table", "digits": 3, "unit": ""}], "tests": [{"name": "weight rows sum to 1", "params": {}, "expect": "out.rowSums.every(s => Math.abs(s - 1) \u003c 1e-9)"}, {"name": "output is the weighted sum of rows of V", "params": {}, "expect": "out.out.every((row, i) => row.every((val, c) => Math.abs(val - out.weights[i].reduce((a, w, j) => a + w * out.V[j][c], 0)) \u003c 1e-9))"}, {"name": "scaling off leaves scores unscaled", "params": {"scale": false, "dk": 2, "Q": [[1, 0], [0, 1]], "K": [[1, 0], [0, 1], [1, 1]], "V": [[1, 0], [0, 1], [1, 1]]}, "expect": "Math.abs(out.divisor - 1) \u003c 1e-12 && out.scaled.every((r, i) => r.every((v, j) => Math.abs(v - out.S[i][j]) \u003c 1e-12))"}, {"name": "scaling on divides by sqrt(d\u003csub>k\u003c/sub>)", "params": {"scale": true, "dk": 2, "Q": [[1, 0], [0, 1]], "K": [[1, 0], [0, 1], [1, 1]], "V": [[1, 0], [0, 1], [1, 1]]}, "expect": "Math.abs(out.divisor - Math.sqrt(2)) \u003c 1e-12 && Math.abs(out.scaled[0][0] - 1/Math.sqrt(2)) \u003c 1e-12"}, {"name": "identical keys give uniform weights", "params": {"scale": false, "dk": 2, "Q": [[1, 0], [0, 1]], "K": [[1, 0], [1, 0], [1, 0]], "V": [[1, 0], [0, 1], [1, 1]]}, "expect": "out.weights.every(r => r.every(w => Math.abs(w - 1/3) \u003c 1e-9))"}, {"name": "uniform weights average the rows of V", "params": {"scale": false, "dk": 2, "Q": [[1, 0], [0, 1]], "K": [[1, 0], [1, 0], [1, 0]], "V": [[1, 0], [0, 1], [1, 1]]}, "expect": "out.out.every((row, i) => row.every((val, c) => Math.abs(val - (out.V[0][c] + out.V[1][c] + out.V[2][c])/3) \u003c 1e-9))"}]}</script>
+<script type="application/json" id="pg-data">{"controls": [{"id": "scaling", "type": "toggle", "label": "Divide scores by √d\u003csub>k\u003c/sub>", "default": true}, {"id": "dk", "type": "slider", "label": "d\u003csub>k\u003c/sub> (query/key dimension)", "default": 4, "min": 1, "max": 4, "step": 1}, {"id": "q", "type": "vector", "label": "Query q", "default": [2, 0, 0, 0], "length": 4, "lengthFrom": "dk", "min": -3, "max": 3, "step": 1}, {"id": "k", "type": "matrix", "label": "Keys K (one row per key)", "default": [[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 2]], "rows": 4, "cols": 4, "colsFrom": "dk", "min": -3, "max": 3, "step": 1}, {"id": "v", "type": "matrix", "label": "Values V (one row per key)", "default": [[1, 0], [0, 1], [1, 1], [2, 0]], "rows": 4, "cols": 2, "rowsFrom": "dk", "min": -3, "max": 3, "step": 1}], "readouts": [{"key": "scores", "label": "Raw dot products q·k\u003csub>j\u003c/sub>", "digits": 3, "unit": ""}, {"key": "scale", "label": "Scaling factor 1/√d\u003csub>k\u003c/sub>", "digits": 3, "unit": ""}, {"key": "scaled", "label": "Scaled scores", "digits": 3, "unit": ""}, {"key": "weights", "label": "Attention weights", "digits": 3, "unit": ""}, {"key": "weightSum", "label": "Sum of weights", "digits": 3, "unit": ""}, {"key": "output", "label": "Output (weighted sum of V rows)", "digits": 3, "unit": ""}, {"key": "maxWeight", "label": "Largest weight", "digits": 3, "unit": ""}, {"key": "entropy", "label": "Weight entropy", "digits": 3, "unit": "bits"}], "tests": [{"name": "weights always sum to 1", "params": {}, "expect": "Math.abs(H.sum(out.weights)-1)\u003c1e-9"}, {"name": "output is the weighted sum of V rows", "params": {}, "expect": "out.output.every((o,c)=>Math.abs(o-out.weights.reduce((a,w,j)=>a+w*out.V[j][c],0))\u003c1e-9)"}, {"name": "scaling off leaves raw scores unchanged", "params": {"scaling": false, "dk": 4, "q": [2, 0, 0, 0], "k": [[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]], "v": [[1, 0], [0, 1], [1, 1], [2, 0]]}, "expect": "Math.abs(out.scores[0]-4)\u003c1e-9 && Math.abs(out.scaled[0]-4)\u003c1e-9"}, {"name": "scaling on divides by √d\u003csub>k\u003c/sub>", "params": {"scaling": true, "dk": 4, "q": [2, 0, 0, 0], "k": [[2, 0, 0, 0], [0, 2, 0, 0], [0, 0, 2, 0], [0, 0, 0, 1]], "v": [[1, 0], [0, 1], [1, 1], [2, 0]]}, "expect": "Math.abs(out.scaled[0]-2)\u003c1e-9 && Math.abs(out.scale-0.5)\u003c1e-9"}, {"name": "equal scores give uniform weights", "params": {"scaling": true, "dk": 2, "q": [1, 1], "k": [[1, 1], [1, 1], [0, 0], [0, 0]], "v": [[1, 0], [0, 1], [0, 0], [0, 0]]}, "expect": "Math.abs(out.weights[0]-0.5)\u003c1e-9 && Math.abs(out.weights[1]-0.5)\u003c1e-9 && Math.abs(out.output[0]-0.5)\u003c1e-9 && Math.abs(out.output[1]-0.5)\u003c1e-9"}, {"name": "all-zero keys give uniform weights and zero output", "params": {"scaling": true, "dk": 3, "q": [0, 0, 0], "k": [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]], "v": [[0, 0], [0, 0], [0, 0], [0, 0]]}, "expect": "out.weights.every(w=>Math.abs(w-1/3)\u003c1e-9) && out.output.every(o=>Math.abs(o)\u003c1e-9)"}]}</script>
 <script>
 /* Paper to Playground helper library.
    H  : pure drawing + math helpers available to generated compute()/render() code.
@@ -411,7 +488,10 @@ var H = (function () {
     if (o.max !== undefined && isFinite(o.max)) hi = Math.max(hi, Number(o.max)); else hi = hi + span0 * 0.12;
     if (lo < 0) lo -= span0 * 0.14;   /* room for value labels under negative bars */
     if (hi === lo) hi = lo + 1;
-    var tk = ticks(lo, hi, 5), pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var tk = ticks(lo, hi, 5), widest = 0;
+    tk.t.forEach(function (v) { widest = Math.max(widest, H.fmt(v, tk.d).length); });
+    m.l = Math.max(m.l, widest * 7.4 + 26);   /* long tick labels (e.g. 1.00e-10) must not be clipped */
+    var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var Y = function (v) { return m.t + ph - (v - lo) / (hi - lo) * ph; };
     var hl = hlSet(o.highlight), s = '';
     if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
@@ -454,12 +534,15 @@ var H = (function () {
     var y0 = ys.length ? Math.min.apply(null, ys) : 0, y1 = ys.length ? Math.max.apply(null, ys) : 1;
     if (x1 === x0) { x0 -= 0.5; x1 += 0.5; }
     var pad = (y1 - y0) * 0.06 || Math.abs(y0) * 0.1 || 0.5; y0 -= pad; y1 += pad;
-    if (o.yMin !== undefined && isFinite(o.yMin)) y0 = Number(o.yMin);
-    if (o.yMax !== undefined && isFinite(o.yMax)) y1 = Number(o.yMax);
+    /* a requested axis range may widen the view but never clips data into a false plateau */
+    if (o.yMin !== undefined && isFinite(o.yMin)) y0 = Math.min(y0, Number(o.yMin));
+    if (o.yMax !== undefined && isFinite(o.yMax)) y1 = Math.max(y1, Number(o.yMax));
     if (y1 <= y0) y1 = y0 + 1;
     var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var X = function (v) { return m.l + (v - x0) / (x1 - x0) * pw; }, Y = function (v) { return m.t + ph - (H.clamp(v, y0, y1) - y0) / (y1 - y0) * ph; };
-    var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5);
+    var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5), widest = 0;
+    ty.t.forEach(function (v) { widest = Math.max(widest, H.fmt(v, ty.d).length); });
+    if (widest * 7.4 + 26 > m.l) { m.l = widest * 7.4 + 26; pw = w - m.l - m.r; }
     if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
     ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' }) + T(m.l - 6, Y(v) + 4, H.fmt(v, ty.d), { anchor: 'end', size: 12.5, color: 'muted' }); });
     if (cat) tx = { t: H.range(cat.length).filter(function (i) { return cat.length <= 12 || i % Math.ceil(cat.length / 12) === 0; }), d: 0 };
@@ -468,7 +551,7 @@ var H = (function () {
     marks.forEach(function (mk) {
       if (!isFinite(mk.x)) return;
       s += H.line(X(mk.x), m.t, X(mk.x), m.t + ph, { color: 'accent', width: 1.5, dash: true });
-      if (mk.label !== undefined && mk.label !== '') s += T(H.clamp(X(mk.x), m.l + 30, w - m.r - 30), m.t + 11, mk.label, { size: 11, color: 'accent', bold: true });
+      if (mk.label !== undefined && mk.label !== '') s += T(H.clamp(X(mk.x), m.l + 30, w - m.r - 30), m.t + ph - 7, mk.label, { size: 11, color: 'accent', bold: true });
     });
     series.forEach(function (sr) {
       s += H.path(sr.x.map(function (xv, i) { return [isFinite(xv) && isFinite(sr.y[i]) ? X(xv) : NaN, isFinite(sr.y[i]) ? Y(sr.y[i]) : NaN]; }), { color: sr.color, width: 2.6, dash: sr.dash });
@@ -628,12 +711,21 @@ var PG = (function () {
     });
     return { raw: out, unknown: unknown };
   };
-  /* the object handed to compute()/render(): vectors tied to a size slider are cut to that size */
+  /* the part of a vector/matrix in use: its size slider's value, clamped to 1..declared size. raw always keeps
+     the full declared size, so shrinking and growing again never loses entries */
+  PG.size = function (c, raw) {
+    function pick(src, max) { var v = src ? Number(raw[src]) : NaN; return isFinite(v) ? Math.max(1, Math.min(max, Math.round(v))) : max; }
+    if (c.type === 'vector') return { len: pick(c.lengthFrom, c.length) };
+    if (c.type === 'matrix') return { rows: pick(c.rowsFrom, c.rows), cols: pick(c.colsFrom, c.cols) };
+    return {};
+  };
+  /* the object handed to compute()/render(): vectors and matrices tied to size sliders are cut to that size */
   PG.params = function (controls, raw) {
     var p = clone(raw);
     controls.forEach(function (c) {
-      if (c.type === 'vector' && c.lengthFrom && typeof p[c.lengthFrom] === 'number')
-        p[c.id] = p[c.id].slice(0, Math.max(1, Math.min(c.length, Math.round(p[c.lengthFrom]))));
+      var s = PG.size(c, raw);
+      if (c.type === 'vector' && c.lengthFrom) p[c.id] = p[c.id].slice(0, s.len);
+      else if (c.type === 'matrix' && (c.rowsFrom || c.colsFrom)) p[c.id] = p[c.id].slice(0, s.rows).map(function (r) { return r.slice(0, s.cols); });
     });
     return p;
   };
@@ -653,113 +745,104 @@ var PG = (function () {
 <script>
 function compute(p) {
   const dk = Math.max(1, Math.round(p.dk));
-  const Q = p.Q.map(r => r.slice(0, dk));
-  const K = p.K.map(r => r.slice(0, dk));
-  const V = p.V.map(r => r.slice(0));
-  const nQ = Q.length, nK = K.length, dv = V[0].length;
+  const n = dk;
+  const q = p.q.slice(0, dk);
+  const K = p.k.slice(0, n).map(r => r.slice(0, dk));
+  const V = p.v.slice(0, n).map(r => r.slice(0, 2));
+  const dv = 2;
 
-  // raw scores S = Q K^T
-  const S = [];
-  for (let i = 0; i < nQ; i++) {
-    const row = [];
-    for (let j = 0; j < nK; j++) {
-      let s = 0;
-      for (let c = 0; c < dk; c++) s += Q[i][c] * K[j][c];
-      row.push(s);
-    }
-    S.push(row);
+  // raw scores S = Q K^T  (here one query row -> a vector of length n)
+  const scores = [];
+  for (let j = 0; j < n; j++) {
+    let s = 0;
+    for (let c = 0; c < dk; c++) s += q[c] * K[j][c];
+    scores.push(s);
   }
 
-  const divisor = p.scale ? Math.sqrt(dk) : 1;
-  const scaled = S.map(r => r.map(v => v / divisor));
+  const scale = p.scaling ? 1 / Math.sqrt(dk) : 1;
+  const scaled = scores.map(s => s * scale);
 
-  // row-wise softmax with max subtraction
-  const weights = scaled.map(r => {
-    const m = Math.max(...r);
-    const ex = r.map(v => Math.exp(v - m));
-    const z = H.sum(ex);
-    return ex.map(v => (z > 0 ? v / z : 1 / r.length));
-  });
+  // softmax over the row (guard against overflow by subtracting the max)
+  const m = scaled.length ? Math.max(...scaled) : 0;
+  const exps = scaled.map(s => Math.exp(s - m));
+  const Z = exps.reduce((a, b) => a + b, 0);
+  const weights = exps.map(e => (Z > 0 ? e / Z : 0));
 
-  // output = weights V
-  const out = [];
-  for (let i = 0; i < nQ; i++) {
-    const row = [];
-    for (let c = 0; c < dv; c++) {
-      let s = 0;
-      for (let j = 0; j < nK; j++) s += weights[i][j] * V[j][c];
-      row.push(s);
-    }
-    out.push(row);
+  // output = weights · V  (weighted sum of the rows of V)
+  const output = [];
+  for (let c = 0; c < dv; c++) {
+    let o = 0;
+    for (let j = 0; j < n; j++) o += weights[j] * V[j][c];
+    output.push(o);
   }
 
-  const rowSums = weights.map(r => H.sum(r));
-  const maxWeight = Math.max(...weights.map(r => Math.max(...r)));
-  const scoreSpread = S.map(r => Math.max(...r) - Math.min(...r));
+  const weightSum = weights.reduce((a, b) => a + b, 0);
+  const maxWeight = weights.length ? Math.max(...weights) : 0;
+  const entropy = -weights.reduce((a, w) => a + (w > 0 ? w * Math.log2(w) : 0), 0);
 
   return {
-    dk, divisor, Q, K, V, S, scaled, weights, out,
-    rowSums, maxWeight, scoreSpread,
-    nQ, nK, dv
+    dk, n, dv,
+    q, K, V,
+    scores, scaled, weights, output,
+    scale, weightSum, maxWeight, entropy,
+    norm: Math.sqrt(dk)
   };
 }
 function render(p, out) {
-  const dk = out.dk;
-  const qLabels = out.Q.map((_, i) => "q" + (i + 1));
-  const kLabels = out.K.map((_, j) => "k" + (j + 1));
-  const vLabels = out.V.map((_, j) => "v" + (j + 1));
+  const n = out.n;
+  const keyLabels = H.range(n).map(j => "k" + (j + 1));
 
-  const scorePanel = H.heatmap({
-    matrix: out.S,
-    rowLabels: qLabels,
-    colLabels: kLabels,
-    title: "Raw scores S = QKᵀ (before scaling)",
-    digits: 2
-  });
-
-  const scaledPanel = H.heatmap({
-    matrix: out.scaled,
-    rowLabels: qLabels,
-    colLabels: kLabels,
-    title: "Scaled scores S / " + (p.scale ? "√" + dk : "1") + "  (divisor = " + H.fmt(out.divisor, 3) + ")",
-    digits: 2
-  });
-
-  const weightPanel = H.heatmap({
-    matrix: out.weights,
-    rowLabels: qLabels,
-    colLabels: kLabels,
-    title: "Attention weights softmax(scaled scores), rows sum to 1",
-    digits: 3,
-    highlight: out.weights.map((r, i) => [i, H.argmax(r)])
-  });
-
-  const outPanel = H.matrixTable(out.out, {
-    title: "Output = weights · V  (each row is a weighted sum of rows of V)",
-    rowLabels: qLabels,
-    colLabels: out.V[0].map((_, c) => "d" + (c + 1)),
+  const scorePanel = H.bars({
+    labels: keyLabels,
+    values: out.scaled,
+    title: "Scaled scores q·k_j / √d_k",
+    yLabel: "score",
+    xLabel: "key",
+    highlight: H.argmax(out.scaled),
     digits: 3
   });
 
-  const vPanel = H.matrixTable(out.V, {
-    title: "Values V (rows = keys)",
-    rowLabels: vLabels,
-    colLabels: out.V[0].map((_, c) => "d" + (c + 1)),
-    digits: 2
-  });
-
-  const barPanel = H.bars({
-    labels: out.weights.map((r, i) => "q" + (i + 1) + "→" + kLabels[H.argmax(r)]),
-    values: out.weights.map(r => Math.max(...r)),
-    title: "Largest weight per query (max = " + H.fmt(out.maxWeight, 3) + ")",
-    yLabel: "max weight",
-    xLabel: "query → best key",
-    highlight: out.weights.map((r, i) => i),
+  const weightPanel = H.bars({
+    labels: keyLabels,
+    values: out.weights,
+    title: "Attention weights (softmax, sum = " + H.fmt(out.weightSum, 3) + ")",
+    yLabel: "weight",
+    xLabel: "key",
+    highlight: H.argmax(out.weights),
     max: 1,
     digits: 3
   });
 
-  return H.grid(2, [scorePanel, scaledPanel, weightPanel, outPanel, vPanel, barPanel]);
+  const rawTable = H.vectorTable(out.scores, {
+    title: "Raw dot products q·k_j",
+    labels: keyLabels,
+    digits: 3
+  });
+
+  const outTable = H.vectorTable(out.output, {
+    title: "Output = Σ_j w_j · V[j]  (d_v = " + out.dv + ")",
+    labels: ["out₁", "out₂"],
+    digits: 3
+  });
+
+  const vTable = H.matrixTable(out.V, {
+    title: "Values V (rows weighted by w)",
+    rowLabels: keyLabels,
+    colLabels: ["v₁", "v₂"],
+    digits: 3,
+    highlight: [[H.argmax(out.weights), 0], [H.argmax(out.weights), 1]]
+  });
+
+  const info = H.vectorTable(
+    [out.scale, out.norm, out.maxWeight, out.entropy],
+    {
+      title: "Scaling factor, √d_k, max weight, weight entropy (bits)",
+      labels: ["scale", "√d_k", "max w", "entropy"],
+      digits: 3
+    }
+  );
+
+  return H.grid(2, [scorePanel, weightPanel, rawTable, vTable, outTable, info]);
 }
 </script>
 <script>
@@ -775,7 +858,9 @@ function render(p, out) {
     if (text !== undefined) e.textContent = text;
     return e;
   }
-  function visibleLength(c) { return c.lengthFrom ? Math.max(1, Math.min(c.length, Math.round(raw[c.lengthFrom]))) : c.length; }
+  function sizeKey(c) { var s = PG.size(c, raw); return c.type === 'vector' ? String(s.len) : c.type === 'matrix' ? s.rows + 'x' + s.cols : ''; }
+  /* rebuild every vector/matrix whose size slider changed, whichever control or button changed it */
+  function resized() { controls.forEach(function (c) { if (widgets[c.id] && widgets[c.id].getAttribute('data-size') !== sizeKey(c)) build(c); }); }
   function numInput(c, get, set) {
     var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get() });
     i.addEventListener('input', function () {
@@ -796,11 +881,7 @@ function render(p, out) {
     var row = el('div', { 'class': 'row' });
     if (c.type === 'slider') {
       var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] }), o = el('output', {}, H.fmt(raw[c.id], 4));
-      rg.addEventListener('input', function () {
-        raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4);
-        controls.forEach(function (d) { if (d.lengthFrom === c.id) build(d); });
-        update();
-      });
+      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4); update(); });
       row.appendChild(rg); row.appendChild(o);
     } else if (c.type === 'number') {
       var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
@@ -817,7 +898,7 @@ function render(p, out) {
       sel.addEventListener('change', function () { raw[c.id] = PG.coerce(c, sel.value); update(); });
       row.appendChild(sel);
     } else if (c.type === 'vector') {
-      var len = visibleLength(c), cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
+      var len = PG.size(c, raw).len, cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
         var cell = el('div');
         cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
@@ -826,13 +907,14 @@ function render(p, out) {
       })(i);
       row.appendChild(cells);
     } else if (c.type === 'matrix') {
-      var grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + c.cols + ',auto)' });
-      for (var r = 0; r < c.rows; r++) for (var k = 0; k < c.cols; k++) (function (r, k) {
+      var sz = PG.size(c, raw), grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + sz.cols + ',auto)' });
+      for (var r = 0; r < sz.rows; r++) for (var k = 0; k < sz.cols; k++) (function (r, k) {
         grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }));
       })(r, k);
       row.style.overflowX = 'auto'; row.appendChild(grid);
     }
     w.appendChild(row);
+    w.setAttribute('data-size', sizeKey(c));
   }
   function buildAll() { controls.forEach(build); }
 
@@ -884,6 +966,7 @@ function render(p, out) {
     buildAll(); update();
   }
   function update() {
+    resized();
     var p = PG.params(controls, raw), out = null, msg = '';
     try {
       if (typeof compute !== 'function') throw new Error('the calculation code did not load');
@@ -904,6 +987,7 @@ function render(p, out) {
       var r = readouts[t.i];
       t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
     });
+    sweep(out);
     tests.forEach(function (t, i) {
       var ok = false;
       try {
@@ -916,6 +1000,52 @@ function render(p, out) {
       checkItems[i].firstChild.textContent = ok ? '✓' : '✗';
     });
   }
+  /* automatic graphs: one scalar result plotted against each numeric control, every point from compute() */
+  var scalars = readouts.filter(function (r) { return first && typeof PG.get(first, r.key) === 'number'; });
+  var sweepable = controls.filter(function (c) { return c.type === 'slider' || c.type === 'number'; }).slice(0, 6);
+  function plain(s) {
+    return String(s).replace(/<sub>(.*?)<\/sub>/g, '_{$1}').replace(/<sup>(.*?)<\/sup>/g, '^{$1}').replace(/<[^>]+>/g, '')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }
+  scalars.forEach(function (r, i) { $('pg-sweep-out').appendChild(el('option', { value: String(i) }, plain(r.label).replace(/[_^]\{([^}]*)\}/g, '$1'))); });
+  function curve(c, r, n) {
+    var steps = Math.round((c.max - c.min) / c.step), xs = [], ys = [];
+    if (!n) n = steps >= 1 && steps <= 40 ? steps + 1 : 41;
+    for (var i = 0; i < n; i++) {
+      var x = PG.coerce(c, H.round(c.min + (c.max - c.min) * i / (n - 1), 8)), y = NaN;
+      try {
+        var st = JSON.parse(JSON.stringify(raw)); st[c.id] = x;
+        var v = PG.get(compute(PG.params(controls, st)), r.key);
+        if (typeof v === 'number' && isFinite(v)) y = v;
+      } catch (e) { y = NaN; }
+      xs.push(x); ys.push(y);
+    }
+    var fin = ys.filter(function (v) { return isFinite(v); }), lo = Math.min.apply(null, fin), hi = Math.max.apply(null, fin);
+    return { x: xs, y: ys, flat: !fin.length || hi - lo <= 1e-9 * Math.max(1, Math.abs(hi), Math.abs(lo)) };
+  }
+  /* open on the result that responds to the most controls (ties: the later one, as readouts follow the calculation) */
+  var bestIdx = scalars.length - 1, bestN = -1;
+  scalars.forEach(function (r, i) {
+    var k = sweepable.filter(function (c) { return !curve(c, r, 5).flat; }).length;
+    if (k >= bestN) { bestN = k; bestIdx = i; }
+  });
+  if (scalars.length) $('pg-sweep-out').selectedIndex = bestIdx;
+  $('pg-sweep-out').addEventListener('change', function () { update(); });
+  function sweep(out) {
+    var wrap = $('pg-sweep-wrap');
+    if (!out || !scalars.length || !sweepable.length) { wrap.hidden = true; return; }
+    var r = scalars[Math.max(0, $('pg-sweep-out').selectedIndex)], now = PG.get(out, r.key), unit = r.unit ? ' (' + plain(r.unit) + ')' : '';
+    var panels = [], flat = [];
+    sweepable.forEach(function (c) {
+      var cv = curve(c, r);
+      if (cv.flat) { flat.push(plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1')); return; }
+      panels.push(H.lines({ x: cv.x, series: [{ name: '', y: cv.y }], title: 'Effect of ' + plain(c.label), xLabel: plain(c.label), yLabel: plain(r.label) + unit,
+        points: typeof now === 'number' && isFinite(now) ? [{ x: raw[c.id], y: now, label: H.fmt(now, r.digits) }] : [] }));
+    });
+    var note = flat.length ? H.note((panels.length ? 'No effect on this result at the current settings: ' : 'None of the sliders changes this result at the current settings: ') + flat.join(', ') + '.') : '';
+    try { $('pg-sweep').innerHTML = (panels.length ? H.grid(2, panels) : '') + note; wrap.hidden = false; } catch (e2) { wrap.hidden = true; }
+  }
+
   $('pg-reset').addEventListener('click', function () { load({}); });
   Array.prototype.forEach.call(document.querySelectorAll('button[data-set]'), function (b) {
     b.addEventListener('click', function () {

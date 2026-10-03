@@ -1,70 +1,78 @@
-{"t": 0.0, "stage": "start", "action": "run", "result": "ok", "input": "case.json", "model": "deepseek/deepseek-v4.1-flash", "reasoning": "off", "limits": {"requests": 10, "completion_tokens": 30000, "deadline_s": 510.0}}
+{"t": 0.0, "stage": "start", "action": "run", "result": "ok", "input": "case.json", "model": "deepseek/deepseek-v4.1-flash", "reasoning": "off", "provider_prefs": "off", "limits": {"requests": 10, "completion_tokens": 30000, "deadline_s": 510.0}}
 {"t": 0.0, "stage": "prepare", "action": "parse_case", "result": "ok", "fields": {"source_url": 35, "title": 25, "excerpt": 1536, "focus": 332, "audience": 125}}
 {"t": 0.0, "stage": "prepare", "action": "find_excerpt", "result": "ok", "field": "excerpt", "method": "field name", "chars": 1536, "trimmed": false}
-{"t": 17.469, "stage": "generate", "action": "llm_call", "result": "ok", "chars": 9392, "request_no": 1, "attempt": 1, "model": "deepseek/deepseek-v4.1-flash", "max_tokens": 9000, "http_status": 200, "generation_id": "gen-1791025930-uBs8RwZhrBHeEPD8DoAi", "prompt_tokens": 2238, "completion_tokens": 3097, "reasoning_tokens": 0, "elapsed_s": 17.47, "finish_reason": "stop"}
-{"t": 17.5, "stage": "generate", "action": "parse_tags", "result": "ok", "tags_found": ["compute", "content", "controls", "plan", "readouts", "render", "tests"], "finish_reason": "stop"}
-{"t": 17.5, "stage": "plan", "action": "explanation_plan", "result": "ok", "plan": "Implement Eq. (1): scores S = QKᵀ, scaled by 1/√d_k when toggled, softmax over each row, output = weights·V. Controls: Q, K, V matrices, d_k via a slider, scaling toggle. Invariants: weight rows sum to 1, output equals weighted sum of V rows."}
-{"t": 17.579, "stage": "check", "action": "check:tags_present", "result": "pass", "message": "all required tags present", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:json_content", "result": "pass", "message": "<content> parsed", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:json_controls", "result": "pass", "message": "<controls> parsed", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:json_readouts", "result": "pass", "message": "<readouts> parsed", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:json_tests", "result": "pass", "message": "<tests> parsed", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:content_complete", "result": "pass", "message": "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", "round": 0}
-{"t": 17.579, "stage": "check", "action": "check:content_no_latex", "result": "pass", "message": "no LaTeX markup", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:quotes_grounded", "result": "pass", "message": "3 quote(s) found verbatim in the excerpt", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:controls_valid", "result": "pass", "message": "5 valid controls, unique ids, defaults within range", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:explorations_apply", "result": "fail", "message": "exploration 2 set: Q must be exactly 2x2 like its default (matrix size is fixed)", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:code_pure_compute", "result": "pass", "message": "<compute> is self-contained and deterministic", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:code_pure_render", "result": "pass", "message": "<render> is self-contained and deterministic", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:js_load_compute", "result": "pass", "message": "<compute> code loaded", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:js_load_render", "result": "pass", "message": "<render> code loaded", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:compute_defaults", "result": "pass", "message": "compute(defaults) ran; all outputs finite", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:edge_sweep", "result": "pass", "message": "compute ran at 13 extreme control settings without exceptions or NaN", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:controls_meaningful", "result": "pass", "message": "every control changes at least one output", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: weight rows sum to 1", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: output is the weighted sum of rows of V", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: scaling off leaves scores unscaled", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: scaling on divides by sqrt(d<sub>k</sub>)", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: identical keys give uniform weights", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:test: uniform weights average the rows of V", "result": "pass", "message": "pass", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:render_defaults", "result": "pass", "message": "render(defaults) returned an SVG visual", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:render_edges", "result": "pass", "message": "render ran at every extreme setting", "round": 0}
-{"t": 17.594, "stage": "check", "action": "check:readouts_resolve", "result": "pass", "message": "7 readout keys resolve in out", "round": 0}
-{"t": 17.61, "stage": "check", "action": "check_summary", "result": "fail", "round": 0, "checks_run": 26, "passed": 25, "hard_failures": 1, "warnings": 0}
-{"t": 17.61, "stage": "repair", "action": "revision", "result": "requested", "round": 1, "tags": ["content", "controls"], "reasons": ["explorations_apply: exploration 2 set: Q must be exactly 2x2 like its default (matrix size is fixed)"]}
-{"t": 43.579, "stage": "repair", "action": "llm_call", "result": "ok", "chars": 3494, "request_no": 2, "attempt": 1, "model": "deepseek/deepseek-v4.1-flash", "max_tokens": 5000, "http_status": 200, "generation_id": "gen-1791025948-CD7O5AO9NpCZpdf4w7fb", "prompt_tokens": 3167, "completion_tokens": 927, "reasoning_tokens": 0, "elapsed_s": 25.97, "finish_reason": "stop"}
-{"t": 43.625, "stage": "check", "action": "check:tags_present", "result": "pass", "message": "all required tags present", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:json_content", "result": "pass", "message": "<content> parsed", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:json_controls", "result": "pass", "message": "<controls> parsed", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:json_readouts", "result": "pass", "message": "<readouts> parsed", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:json_tests", "result": "pass", "message": "<tests> parsed", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:content_complete", "result": "pass", "message": "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:content_no_latex", "result": "pass", "message": "no LaTeX markup", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:quotes_grounded", "result": "pass", "message": "3 quote(s) found verbatim in the excerpt", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:controls_valid", "result": "pass", "message": "5 valid controls, unique ids, defaults within range", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:explorations_apply", "result": "pass", "message": "both explorations can be applied to the controls", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:code_pure_compute", "result": "pass", "message": "<compute> is self-contained and deterministic", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:code_pure_render", "result": "pass", "message": "<render> is self-contained and deterministic", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:js_load_compute", "result": "pass", "message": "<compute> code loaded", "round": 1}
-{"t": 43.641, "stage": "check", "action": "check:js_load_render", "result": "pass", "message": "<render> code loaded", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:compute_defaults", "result": "pass", "message": "compute(defaults) ran; all outputs finite", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:edge_sweep", "result": "pass", "message": "compute ran at 13 extreme control settings without exceptions or NaN", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:controls_meaningful", "result": "pass", "message": "every control changes at least one output", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: weight rows sum to 1", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: output is the weighted sum of rows of V", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: scaling off leaves scores unscaled", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: scaling on divides by sqrt(d<sub>k</sub>)", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: identical keys give uniform weights", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:test: uniform weights average the rows of V", "result": "pass", "message": "pass", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:render_defaults", "result": "pass", "message": "render(defaults) returned an SVG visual", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:render_edges", "result": "pass", "message": "render ran at every extreme setting", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check:readouts_resolve", "result": "pass", "message": "7 readout keys resolve in out", "round": 1}
-{"t": 43.657, "stage": "check", "action": "check_summary", "result": "pass", "round": 1, "checks_run": 26, "passed": 26, "hard_failures": 0, "warnings": 0}
-{"t": 43.657, "stage": "repair", "action": "merge", "result": "adopted", "round": 1, "tags_replaced": ["content"], "hard_failures_before": 1, "hard_failures_after": 0}
-{"t": 43.704, "stage": "assemble", "action": "check:page_self_contained", "result": "pass", "message": "no remote resources, fetch, import or XHR in the page", "round": "final"}
-{"t": 43.719, "stage": "assemble", "action": "check:page_js_syntax", "result": "pass", "message": "all inline scripts parse", "round": "final"}
-{"t": 43.719, "stage": "assemble", "action": "check:page_size", "result": "pass", "message": "61918 bytes", "round": "final"}
-{"t": 43.719, "stage": "assemble", "action": "check:page_no_secret", "result": "pass", "message": "API key absent from page", "round": "final"}
-{"t": 43.719, "stage": "assemble", "action": "check_summary", "result": "pass", "round": "final", "checks_run": 4, "passed": 4, "hard_failures": 0, "warnings": 0}
-{"t": 43.719, "stage": "assemble", "action": "write_page", "result": "ok", "path": "index.html", "bytes": 61918, "unresolved": []}
-{"t": 43.719, "stage": "done", "action": "exit", "result": "success", "exit_code": 0, "checks_run": 26, "checks_passed": 26, "requests": 2, "prompt_tokens": 5405, "completion_tokens": 4024, "reasoning_tokens": 0, "total_tokens": 9429, "unverified_completion_reserve": 0, "elapsed_s": 43.72}
+{"t": 0.422, "stage": "prepare", "action": "model_info", "result": "ok", "model": "deepseek/deepseek-v4.1-flash", "reasoning": {"mandatory": false, "default_enabled": true, "supported_efforts": ["max", "high", "low"], "default_effort": "high", "supported": true}, "request_no": 1, "elapsed_s": 0.42}
+{"t": 0.422, "stage": "prepare", "action": "reasoning_setting", "result": "ok", "requested": "off", "sent": {"enabled": false, "exclude": true}, "reason": "reasoning disabled"}
+{"t": 12.469, "stage": "generate", "action": "llm_call", "result": "ok", "chars": 9475, "request_no": 2, "attempt": 1, "model": "deepseek/deepseek-v4.1-flash", "max_tokens": 9000, "reasoning": {"enabled": false, "exclude": true}, "http_status": 200, "generation_id": "gen-1791030272-KJPC47g2s7BVGQsp21K7", "prompt_tokens": 2451, "completion_tokens": 3100, "reasoning_tokens": 0, "elapsed_s": 12.05, "finish_reason": "stop"}
+{"t": 12.5, "stage": "generate", "action": "parse_tags", "result": "ok", "tags_found": ["compute", "content", "controls", "plan", "readouts", "render", "tests"], "finish_reason": "stop"}
+{"t": 12.5, "stage": "plan", "action": "explanation_plan", "result": "ok", "plan": "Implement Eq. (1): scores S = QK^T, scaled by 1/√d_k when toggled, softmax over each row, output = weights·V. Controls: scaling toggle, d_k size, Q/K/V vectors, temperature. Invariants: each weight row sums to 1; output equals weighted sum of V rows."}
+{"t": 12.578, "stage": "check", "action": "check:tags_present", "result": "pass", "message": "all required tags present", "round": 0}
+{"t": 12.578, "stage": "check", "action": "check:json_content", "result": "pass", "message": "<content> parsed", "round": 0}
+{"t": 12.578, "stage": "check", "action": "check:json_controls", "result": "pass", "message": "<controls> parsed", "round": 0}
+{"t": 12.578, "stage": "check", "action": "check:json_readouts", "result": "pass", "message": "<readouts> parsed", "round": 0}
+{"t": 12.578, "stage": "check", "action": "check:json_tests", "result": "pass", "message": "<tests> parsed", "round": 0}
+{"t": 12.578, "stage": "check", "action": "check:content_complete", "result": "pass", "message": "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:content_no_latex", "result": "pass", "message": "no LaTeX markup", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:quotes_grounded", "result": "pass", "message": "3 quote(s) found verbatim in the excerpt", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:controls_valid", "result": "pass", "message": "5 valid controls, unique ids, defaults within range", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:explorations_apply", "result": "pass", "message": "both explorations can be applied to the controls", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:tests_params_shape", "result": "fail", "message": "test 'equal scores give uniform weights' params: k must be at most 4x4 like its default (size sliders choose how much is used); test 'all-zero keys give uniform weights and zero output' params: k must be at most 4x4 like its default (size sliders choose how much is used)", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:code_pure_compute", "result": "pass", "message": "<compute> is self-contained and deterministic", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:code_pure_render", "result": "pass", "message": "<render> is self-contained and deterministic", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:js_load_compute", "result": "pass", "message": "<compute> code loaded", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:js_load_render", "result": "pass", "message": "<render> code loaded", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:compute_defaults", "result": "pass", "message": "compute(defaults) ran; all outputs finite", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:edge_sweep", "result": "pass", "message": "compute ran at 15 extreme control settings without exceptions or NaN", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:controls_meaningful", "result": "pass", "message": "every control changes at least one output", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: weights always sum to 1", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: output is the weighted sum of V rows", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: scaling off leaves raw scores unchanged", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: scaling on divides by √d<sub>k</sub>", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: equal scores give uniform weights", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:test: all-zero keys give uniform weights and zero output", "result": "pass", "message": "pass", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:render_defaults", "result": "pass", "message": "render(defaults) returned an SVG visual", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:render_edges", "result": "pass", "message": "render ran at every extreme setting", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:resize_sweep", "result": "pass", "message": "compute and render work at all 12 sizes the size sliders allow (1 included)", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:exploration_numbers", "result": "pass", "message": "numbers quoted in the explorations match the calculation", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check:readouts_resolve", "result": "pass", "message": "8 readout keys resolve in out", "round": 0}
+{"t": 12.594, "stage": "check", "action": "check_summary", "result": "fail", "round": 0, "checks_run": 29, "passed": 28, "hard_failures": 1, "warnings": 0}
+{"t": 12.594, "stage": "repair", "action": "revision", "result": "requested", "round": 1, "tags": ["tests"], "reasons": ["tests_params_shape: test 'equal scores give uniform weights' params: k must be at most 4x4 like its default (size sliders choose how much is used); test 'all-zero keys give uniform weights and zero output' params: k must"]}
+{"t": 15.39, "stage": "repair", "action": "llm_call", "result": "ok", "chars": 1330, "request_no": 3, "attempt": 1, "model": "deepseek/deepseek-v4.1-flash", "max_tokens": 5000, "reasoning": {"enabled": false, "exclude": true}, "http_status": 200, "generation_id": "gen-1791030285-EPggN9KSJBbetVtuDL1B", "prompt_tokens": 3574, "completion_tokens": 593, "reasoning_tokens": 0, "elapsed_s": 2.8, "finish_reason": "stop"}
+{"t": 15.437, "stage": "check", "action": "check:tags_present", "result": "pass", "message": "all required tags present", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:json_content", "result": "pass", "message": "<content> parsed", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:json_controls", "result": "pass", "message": "<controls> parsed", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:json_readouts", "result": "pass", "message": "<readouts> parsed", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:json_tests", "result": "pass", "message": "<tests> parsed", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:content_complete", "result": "pass", "message": "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:content_no_latex", "result": "pass", "message": "no LaTeX markup", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:quotes_grounded", "result": "pass", "message": "3 quote(s) found verbatim in the excerpt", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:controls_valid", "result": "pass", "message": "5 valid controls, unique ids, defaults within range", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:explorations_apply", "result": "pass", "message": "both explorations can be applied to the controls", "round": 1}
+{"t": 15.437, "stage": "check", "action": "check:code_pure_compute", "result": "pass", "message": "<compute> is self-contained and deterministic", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:code_pure_render", "result": "pass", "message": "<render> is self-contained and deterministic", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:js_load_compute", "result": "pass", "message": "<compute> code loaded", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:js_load_render", "result": "pass", "message": "<render> code loaded", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:compute_defaults", "result": "pass", "message": "compute(defaults) ran; all outputs finite", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:edge_sweep", "result": "pass", "message": "compute ran at 15 extreme control settings without exceptions or NaN", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:controls_meaningful", "result": "pass", "message": "every control changes at least one output", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: weights always sum to 1", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: output is the weighted sum of V rows", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: scaling off leaves raw scores unchanged", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: scaling on divides by √d<sub>k</sub>", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: equal scores give uniform weights", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:test: all-zero keys give uniform weights and zero output", "result": "pass", "message": "pass", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:render_defaults", "result": "pass", "message": "render(defaults) returned an SVG visual", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:render_edges", "result": "pass", "message": "render ran at every extreme setting", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:resize_sweep", "result": "pass", "message": "compute and render work at all 12 sizes the size sliders allow (1 included)", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:exploration_numbers", "result": "pass", "message": "numbers quoted in the explorations match the calculation", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check:readouts_resolve", "result": "pass", "message": "8 readout keys resolve in out", "round": 1}
+{"t": 15.453, "stage": "check", "action": "check_summary", "result": "pass", "round": 1, "checks_run": 28, "passed": 28, "hard_failures": 0, "warnings": 0}
+{"t": 15.453, "stage": "repair", "action": "merge", "result": "adopted", "round": 1, "tags_replaced": ["tests"], "hard_failures_before": 1, "hard_failures_after": 0}
+{"t": 15.453, "stage": "assemble", "action": "label_grounding", "result": "ok", "section": "§3.2.1", "equation": "Eq. (1)"}
+{"t": 15.484, "stage": "assemble", "action": "check:page_self_contained", "result": "pass", "message": "no remote resources, fetch, import or XHR in the page", "round": "final"}
+{"t": 15.484, "stage": "assemble", "action": "check:page_js_syntax", "result": "pass", "message": "all inline scripts parse", "round": "final"}
+{"t": 15.484, "stage": "assemble", "action": "check:page_size", "result": "pass", "message": "118175 bytes", "round": "final"}
+{"t": 15.484, "stage": "assemble", "action": "check:page_no_secret", "result": "pass", "message": "API key absent from page", "round": "final"}
+{"t": 15.484, "stage": "assemble", "action": "check_summary", "result": "pass", "round": "final", "checks_run": 4, "passed": 4, "hard_failures": 0, "warnings": 0}
+{"t": 15.484, "stage": "assemble", "action": "write_page", "result": "ok", "path": "index.html", "bytes": 118175, "unresolved": []}
+{"t": 15.484, "stage": "done", "action": "exit", "result": "success", "exit_code": 0, "checks_run": 28, "checks_passed": 28, "requests": 3, "prompt_tokens": 6025, "completion_tokens": 3693, "reasoning_tokens": 0, "total_tokens": 9718, "unverified_completion_reserve": 0, "elapsed_s": 15.48}

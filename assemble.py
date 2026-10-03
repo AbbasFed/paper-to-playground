@@ -1,9 +1,39 @@
 """Inject checked parts into the fixed page template and produce one self-contained HTML file."""
+import base64
 import html
 import json
+import os
 import re
 
 from checks import inline_html, read_template
+
+ICONS = {   # small inline icons for the hero stat cards
+    "controls": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+    "values": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4M4 20h16"/><path d="M7 15l4-5 3 3 5-7"/></svg>',
+    "checks": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>',
+    "explore": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>',
+}
+
+
+def logo_uri():
+    """The university logo, embedded so the page stays a single offline file."""
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "aub_logo.png")
+    try:
+        with open(path, "rb") as f:
+            return "data:image/png;base64," + base64.b64encode(f.read()).decode("ascii")
+    except OSError:
+        return "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="   # 1x1 transparent
+
+
+def two_tone(title):
+    """Headline with its opening phrase in the accent colour, like the theme's hero."""
+    head, sep, tail = title.partition(":")
+    if not sep or not tail.strip():
+        words = title.split()
+        head, tail = " ".join(words[:2]), " ".join(words[2:])
+        sep = ""
+    return '<span class="hl">%s%s</span> %s' % (inline_html(head.strip()), sep, inline_html(tail.strip()))
+
 
 DISCLAIMER = "This is a small illustrative demo; it does not reproduce the paper's experimental results."
 
@@ -29,20 +59,29 @@ def build_html(parts, case):
         c = dict(c, equation="")
     formula = re.sub(r";\s+|\s*\n\s*", "<br>", inline_html(c["formula"]).strip())
     formula = re.sub(r"(\(\d{1,2}\))\s+(?=\S)", r"\1<br>", formula)   # one numbered equation per line
+    formula = re.sub(r"<br>\s*[|,;]\s*", "<br>", formula)             # drop a separator left at the start of a line
     cite = " · ".join(esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
     title = c["title"] or c["paper"] or "Interactive explainer"
 
     chips = "".join('<span class="chip">%s</span>' % esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
-    header = '<div class="chips"><span class="chip solid">From the paper</span>%s</div>\n<h1>%s</h1>' % (chips, inline_html(title))
+    header = '<div class="chips"><span class="chip solid">From the paper</span>%s</div>\n<h1>%s</h1>' % (chips, two_tone(title))
     if case.get("audience"):
-        header += '\n<p>Written for: %s</p>' % esc(case["audience"])
+        header += '\n<p class="sub">Written for: %s</p>' % esc(case["audience"])
+    header += ('\n<div class="actions"><a class="btn" href="#playground">Open the playground</a>'
+               '<a class="btn ghost" href="#grounding">See the source</a></div>')
 
-    idea = _p(c["intro"], "lead")
-    if c["why"]:
-        idea += '<p class="why"><b>Why it matters.</b> %s</p>' % inline_html(c["why"])
-    if c["formula"]:
-        idea += ('<div class="from-paper"><span class="tag paper">From the paper%s</span><div class="formula">%s</div></div>'
-                 % (" · " + esc(c["equation"] or c["section"]) if (c["equation"] or c["section"]) else "", formula))
+    n_checks = len(parts["tests"])
+    hero_card = '<div class="hero-card"><span class="tag paper">From the paper%s</span>%s<p class="muted small" style="margin:10px 0 0;text-align:center">%s</p>%s</div>' % (
+        " · " + esc(c["equation"] or c["section"]) if (c["equation"] or c["section"]) else "",
+        '<div class="formula">%s</div>' % formula if c["formula"] else "", cite or "Source paper",
+        '<div class="badge"><b>%d</b> live checks<br>on the calculation</div>' % n_checks if n_checks else "")
+    stats = '<div class="stats">%s</div>' % "".join(
+        '<div class="stat"><span class="ico">%s</span><div><b>%d</b><span>%s</span></div></div>' % (ICONS[k], n, label)
+        for k, n, label in (("controls", len(parts["controls"]), "interactive controls"), ("values", len(parts["readouts"]), "live computed values"),
+                            ("checks", n_checks, "live checks"), ("explore", len(c["explorations"]), "guided explorations")))
+
+    idea = '<div class="idea-grid"><div>%s</div>%s</div>' % (
+        _p(c["intro"], "lead"), '<p class="why"><b>Why it matters</b>%s</p>' % inline_html(c["why"]) if c["why"] else "")
 
     symbols = "<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody>%s</tbody></table>" % "".join(
         '<tr><td class="sym"><span>%s</span></td><td>%s</td></tr>' % (inline_html(s["symbol"]), inline_html(s["meaning"])) for s in c["symbols"])
@@ -72,7 +111,7 @@ def build_html(parts, case):
     fills = {
         "TITLE_TEXT": esc(re.sub(r"<[^>]+>", "", title)),
         "STYLE": read_template("style.css"),
-        "HEADER": header, "IDEA": idea, "SYMBOLS": symbols, "STEPS": steps, "EXPLORATIONS": explorations,
+        "HEADER": header, "HERO_CARD": hero_card, "STATS": stats, "LOGO": logo_uri(), "IDEA": idea, "SYMBOLS": symbols, "STEPS": steps, "EXPLORATIONS": explorations,
         "LIMITATION": _p(c["limitation"]), "GROUNDING": grounding,
         "DATA": json_for_script(data),
         "HELPERS": read_template("helpers.js"),

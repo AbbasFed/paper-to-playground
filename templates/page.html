@@ -9,32 +9,43 @@
 </style>
 </head>
 <body>
-<nav class="top" aria-label="Sections"><div>
-  <a href="#idea">The idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explorations</a><a href="#limitation">Keep in mind</a><a href="#grounding">Source</a>
+<nav class="navbar" aria-label="Sections"><div class="wrap">
+  <a class="brand" href="#top"><img src="{{LOGO}}" alt="American University of Beirut"><span>Paper to<br>Playground</span></a>
+  <div class="links"><a href="#idea">Idea</a><a href="#symbols">Symbols</a><a href="#how">How it works</a><a href="#playground">Playground</a><a href="#explore">Explore</a><a href="#limitation">Limits</a><a href="#grounding">Source</a></div>
+  <a class="btn" href="#playground">Open playground</a>
 </div></nav>
-<main>
-<header class="hero">
+<header class="hero" id="top">
+  <span class="dot a"></span><span class="dot b"></span>
+  <div class="wrap hero-grid">
+    <div>
 {{HEADER}}
+    </div>
+    <div>
+{{HERO_CARD}}
+    </div>
+  </div>
+  <div class="wrap">
+{{STATS}}
+  </div>
 </header>
-
-<section id="idea">
-<h2><span class="no">1</span>The idea</h2>
+<main>
+<section id="idea"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Start here</span><h2>The <span class="hl">idea</span></h2><p>What the paper proposes, in plain words, and why it matters.</p></div>
 {{IDEA}}
-</section>
+</div></section>
 
-<section id="symbols">
-<h2><span class="no">2</span>Symbols</h2>
+<section id="symbols" class="band"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Notation</span><h2><span class="hl">Symbols</span> used on this page</h2><p>Every symbol, written the way the paper writes it.</p></div>
 {{SYMBOLS}}
-</section>
+</div></section>
 
-<section id="how">
-<h2><span class="no">3</span>How it works</h2>
+<section id="how"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Mechanism</span><h2><span class="hl">How it works</span></h2><p>The calculation, one step at a time.</p></div>
 {{STEPS}}
-</section>
+</div></section>
 
-<section id="playground">
-<h2><span class="no">4</span>Interactive playground <span class="tag ours">Our example</span></h2>
-<p class="muted small">Small made-up inputs chosen for clarity. Change any control: the picture, the values and the checks are recalculated immediately.</p>
+<section id="playground" class="band"><div class="wrap">
+<div class="sec-head"><span class="tag ours">Our example</span><h2>Interactive <span class="hl">playground</span></h2><p>Small made-up inputs chosen for clarity. Change any control: the picture, the graphs, the values and the checks are recalculated immediately.</p></div>
 <div class="play">
   <aside class="controls">
     <p class="kicker">Controls</p>
@@ -45,6 +56,14 @@
     <div id="pg-error" class="err" hidden></div>
     <div id="pg-tiles" class="tiles"></div>
     <div id="pg-visual"></div>
+    <div id="pg-sweep-wrap" hidden>
+      <div class="sub-head">
+        <div><h3>How each control changes the result</h3>
+        <p>Each graph sweeps one control across its whole range while the others stay where you set them. The dot is the current setting.</p></div>
+        <div class="sweep-bar"><label for="pg-sweep-out">Result to plot</label><select id="pg-sweep-out"></select></div>
+      </div>
+      <div id="pg-sweep"></div>
+    </div>
     <div class="results">
       <div class="box">
         <p class="kicker">Intermediate and final values</p>
@@ -57,25 +76,29 @@
     </div>
   </div>
 </div>
-</section>
+</div></section>
 
-<section id="explore">
-<h2><span class="no">5</span>Guided explorations</h2>
+<section id="explore"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Try it yourself</span><h2>Guided <span class="hl">explorations</span></h2><p>Two short experiments: what to change, what to watch, and why it happens.</p></div>
 {{EXPLORATIONS}}
-</section>
+</div></section>
 
-<section id="limitation" class="limit">
-<h2><span class="no">!</span>Keep in mind</h2>
+<section id="limitation" class="band"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Keep in mind</span><h2>A <span class="hl">limitation</span> to remember</h2><p>Where this explanation stops being true.</p></div>
+<div class="limit-box">
 {{LIMITATION}}
-</section>
+</div>
+</div></section>
 
-<section id="grounding">
-<h2><span class="no">6</span>Source grounding</h2>
+<section id="grounding"><div class="wrap">
+<div class="sec-head"><span class="eyebrow">Source</span><h2>Source <span class="hl">grounding</span></h2><p>What comes from the paper, and what is our own example.</p></div>
+<div class="ground">
 {{GROUNDING}}
-</section>
-
-<footer>All values computed live in your browser. This page works offline and loads nothing from the network.</footer>
+</div>
+</div></section>
 </main>
+<footer><div class="wrap"><img src="{{LOGO}}" alt="American University of Beirut">
+<p>All values computed live in your browser. This page works offline and loads nothing from the network.</p></div></footer>
 
 <script type="application/json" id="pg-data">{{DATA}}</script>
 <script>
@@ -226,6 +249,7 @@
       var r = readouts[t.i];
       t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
     });
+    sweep(out);
     tests.forEach(function (t, i) {
       var ok = false;
       try {
@@ -238,6 +262,52 @@
       checkItems[i].firstChild.textContent = ok ? '✓' : '✗';
     });
   }
+  /* automatic graphs: one scalar result plotted against each numeric control, every point from compute() */
+  var scalars = readouts.filter(function (r) { return first && typeof PG.get(first, r.key) === 'number'; });
+  var sweepable = controls.filter(function (c) { return c.type === 'slider' || c.type === 'number'; }).slice(0, 6);
+  function plain(s) {
+    return String(s).replace(/<sub>(.*?)<\/sub>/g, '_{$1}').replace(/<sup>(.*?)<\/sup>/g, '^{$1}').replace(/<[^>]+>/g, '')
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  }
+  scalars.forEach(function (r, i) { $('pg-sweep-out').appendChild(el('option', { value: String(i) }, plain(r.label).replace(/[_^]\{([^}]*)\}/g, '$1'))); });
+  function curve(c, r, n) {
+    var steps = Math.round((c.max - c.min) / c.step), xs = [], ys = [];
+    if (!n) n = steps >= 1 && steps <= 40 ? steps + 1 : 41;
+    for (var i = 0; i < n; i++) {
+      var x = PG.coerce(c, H.round(c.min + (c.max - c.min) * i / (n - 1), 8)), y = NaN;
+      try {
+        var st = JSON.parse(JSON.stringify(raw)); st[c.id] = x;
+        var v = PG.get(compute(PG.params(controls, st)), r.key);
+        if (typeof v === 'number' && isFinite(v)) y = v;
+      } catch (e) { y = NaN; }
+      xs.push(x); ys.push(y);
+    }
+    var fin = ys.filter(function (v) { return isFinite(v); }), lo = Math.min.apply(null, fin), hi = Math.max.apply(null, fin);
+    return { x: xs, y: ys, flat: !fin.length || hi - lo <= 1e-9 * Math.max(1, Math.abs(hi), Math.abs(lo)) };
+  }
+  /* open on the result that responds to the most controls (ties: the later one, as readouts follow the calculation) */
+  var bestIdx = scalars.length - 1, bestN = -1;
+  scalars.forEach(function (r, i) {
+    var k = sweepable.filter(function (c) { return !curve(c, r, 5).flat; }).length;
+    if (k >= bestN) { bestN = k; bestIdx = i; }
+  });
+  if (scalars.length) $('pg-sweep-out').selectedIndex = bestIdx;
+  $('pg-sweep-out').addEventListener('change', function () { update(); });
+  function sweep(out) {
+    var wrap = $('pg-sweep-wrap');
+    if (!out || !scalars.length || !sweepable.length) { wrap.hidden = true; return; }
+    var r = scalars[Math.max(0, $('pg-sweep-out').selectedIndex)], now = PG.get(out, r.key), unit = r.unit ? ' (' + plain(r.unit) + ')' : '';
+    var panels = [], flat = [];
+    sweepable.forEach(function (c) {
+      var cv = curve(c, r);
+      if (cv.flat) { flat.push(plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1')); return; }
+      panels.push(H.lines({ x: cv.x, series: [{ name: '', y: cv.y }], title: 'Effect of ' + plain(c.label), xLabel: plain(c.label), yLabel: plain(r.label) + unit,
+        points: typeof now === 'number' && isFinite(now) ? [{ x: raw[c.id], y: now, label: H.fmt(now, r.digits) }] : [] }));
+    });
+    var note = flat.length ? H.note((panels.length ? 'No effect on this result at the current settings: ' : 'None of the sliders changes this result at the current settings: ') + flat.join(', ') + '.') : '';
+    try { $('pg-sweep').innerHTML = (panels.length ? H.grid(2, panels) : '') + note; wrap.hidden = false; } catch (e2) { wrap.hidden = true; }
+  }
+
   $('pg-reset').addEventListener('click', function () { load({}); });
   Array.prototype.forEach.call(document.querySelectorAll('button[data-set]'), function (b) {
     b.addEventListener('click', function () {
