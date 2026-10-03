@@ -3,7 +3,7 @@
 An autonomous agent that turns a research-paper excerpt plus a learning brief into one self-contained,
 offline, interactive explainer page for engineering undergraduates.
 
-**TEAM MEMBERS: ...**
+**TEAM MEMBERS: Abbas Yassine, Habib Shouman, Adam Al Khatib**
 
 **MODEL_ID: `deepseek/deepseek-v4.1-flash`** (DeepSeek V4.1 Flash on OpenRouter; slug confirmed through
 `GET https://openrouter.ai/api/v1/models`). The code is model-agnostic: it uses whatever `--model` is given.
