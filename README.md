@@ -75,6 +75,7 @@ case.json
 | `templates/harness.js` | the checker that runs inside V8 |
 | `cases/` | six practice inputs |
 | `tests/` | offline unit tests, no API calls: `python -m unittest discover -s tests` |
+| `tools/bench.py` | repeated real runs over the practice cases with a token/latency/check summary (spends tokens) |
 | `PROGRESS.md` | done / next / known issues |
 | `examples/attention/` | one committed input/output pair |
 

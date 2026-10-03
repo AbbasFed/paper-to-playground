@@ -52,6 +52,14 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
   **Cannot fail:** only the no-excerpt variant of `quotes_grounded` (a soft pass by design: without an excerpt,
   quotes are omitted because nothing can verify them).
 
+- **Step 6 prep.** `tools/bench.py` runs `agent.py` N times per case (in parallel), reads each `trace.jsonl` and
+  writes `runs/<label>/summary.md|json`: total/prompt/completion/reasoning tokens (mean/min/max), API calls, wall
+  seconds, repairs, checks passed, pass rate, exit codes, guard retries and relabelled citations. Key from the
+  environment or a git-ignored `.env`, never printed.
+- **Step 8 (interim).** `git grep -i "sk-or"` finds only the line in this file that names the command; no
+  key-shaped string (`sk-or-v1-…`) in any commit on any branch; the committed trace has none. To be repeated over
+  the run traces after step 6.
+
 ## Next
 
 6. Real-model runs: every case ×3, with token/latency/repair statistics.
