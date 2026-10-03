@@ -80,13 +80,21 @@ function __runChecks(spec) {
   bases = bases.map(function (b) { try { return { raw: b, str: JSON.stringify(run(b).out) }; } catch (e) { return null; } }).filter(Boolean);
   var invariants = tests.filter(function (t) { return !t.params || !Object.keys(t.params).length; });
   var changed = {}, seenInv = {};
+  /* a control is meaningful only if the learner can see it act: it must change a displayed value (readouts)
+     or the picture; an output nobody displays does not count */
+  function seen(r) {
+    var pic = ''; try { pic = typeof render === 'function' ? String(render(r.p, r.out)) : ''; } catch (e) { pic = ''; }
+    return JSON.stringify(readouts.map(function (ro) { return PG.get(r.out, ro.key); })) + pic;
+  }
+  var baseSeen = seen(base);
+  bases.forEach(function (bs) { try { bs.seen = seen(run(bs.raw)); } catch (e) { bs.seen = null; } });
   sweep.forEach(function (s) {
     var r;
     try { r = run(s.raw); } catch (e) { if (R.edgeErrors.length < 6) R.edgeErrors.push('compute threw at ' + s.label + ': ' + String(e && e.message || e)); return; }
-    if (JSON.stringify(r.out) !== baseStr) changed[s.id] = 1;
+    if (!changed[s.id] && seen(r) !== baseSeen) changed[s.id] = 1;
     else if (!changed[s.id]) bases.forEach(function (bs) {
-      if (changed[s.id]) return;
-      try { var a2 = JSON.parse(JSON.stringify(bs.raw)); a2[s.id] = s.raw[s.id]; if (JSON.stringify(run(a2).out) !== bs.str) changed[s.id] = 1; } catch (e4) {}
+      if (changed[s.id] || bs.seen === null) return;
+      try { var a2 = JSON.parse(JSON.stringify(bs.raw)); a2[s.id] = s.raw[s.id]; if (seen(run(a2)) !== bs.seen) changed[s.id] = 1; } catch (e4) {}
     });
     var acc = { nan: [], inf: [] }; bad(r.out, '', acc, 0);
     if (acc.nan.length && R.edgeNaN.length < 6) R.edgeNaN.push('NaN at ' + s.label + ' in out.' + acc.nan.slice(0, 3).join(', out.'));
@@ -171,6 +179,7 @@ function __runChecks(spec) {
     var quoted = text(ex.observe).match(NUM) || [];
     if (!quoted.length) return;
     var base = PG.merge(controls, def, ex.set || {}).raw, states = [base, def], seen = [];
+    if (ex.then && Object.keys(ex.then).length) states.push(PG.merge(controls, base, ex.then).raw);
     /* "set SNR to 20, then to -10": also try each number named in the change text on each numeric control */
     var named = (text(ex.change).match(/[\u2212-]?\d+(?:\.\d+)?/g) || []).map(toNum);
     controls.forEach(function (c) {
@@ -204,6 +213,42 @@ function __runChecks(spec) {
       if (!ok && missing.indexOf(tok) < 0) missing.push(tok);
     });
     if (missing.length) R.explorationNumbers.push({ index: idx + 1, numbers: missing, computed: scal.join(', ') });
+  });
+
+  /* each exploration's "observe" claim, as the model's own JS expression: out is the state after "set",
+     out2 the state after "then" (the same state when there is no "then") */
+  function small(v) { return Array.isArray(v) && v.length <= 6 && v.every(function (x) { return typeof x === 'number' || small(x); }); }
+  function brief(out) {   /* scalars, vectors and small matrices, so the shapes are visible in a repair message */
+    return Object.keys(out).filter(function (k) { return typeof out[k] === 'number' || small(out[k]); })
+      .slice(0, 12).map(function (k) { return k + '=' + JSON.stringify(out[k], function (_, v) { return typeof v === 'number' ? Number(H.fmt(v, 4).replace('−', '-')) || v : v; }); }).join(', ');
+  }
+  function claimFn(expr) { return new Function('out', 'out2', 'p', 'p2', 'H', 'return (' + expr + ');'); }
+  R.explorationClaims = [];
+  (spec.explorations || []).forEach(function (ex, idx) {
+    if (!ex.expect) return;
+    var rec = { index: idx + 1, expect: ex.expect, pass: false, error: '', malformed: '', clause: '', a: '', b: '' };
+    try {
+      var A = PG.merge(controls, def, ex.set || {}).raw, ra = run(A), rb = run(PG.merge(controls, A, ex.then || {}).raw);
+      var args = [ra.out, rb.out, ra.p, rb.p, H];
+      rec.pass = !!claimFn(ex.expect).apply(null, args);
+      if (!rec.pass) {
+        rec.a = brief(ra.out); rec.b = brief(rb.out);
+        /* name the first false part, and tell a wrong claim from a malformed expect: a part that reads an
+           output path which does not exist (wrong key or wrong shape) proves nothing about the claim */
+        ex.expect.split('&&').some(function (part) {
+          var ok; try { ok = !!claimFn(part).apply(null, args); } catch (e) { ok = true; }
+          if (ok) return false;
+          rec.clause = part.trim();
+          (part.match(/\bout2?(?:\.[A-Za-z_$][\w$]*|\[\d+\])+/g) || []).some(function (path) {
+            var v; try { v = claimFn(path).apply(null, args); } catch (e) { v = undefined; }
+            if (v === undefined || (typeof v === 'number' && isNaN(v))) { rec.malformed = path + ' is ' + String(v); return true; }
+            return false;
+          });
+          return true;
+        });
+      }
+    } catch (e) { rec.error = String(e && e.message || e); }
+    R.explorationClaims.push(rec);
   });
   return JSON.stringify(R);
 }

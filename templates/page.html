@@ -51,11 +51,13 @@
     <p class="kicker">Controls</p>
     <div id="pg-controls"></div>
     <button type="button" id="pg-reset">Reset to defaults</button>
+    <button type="button" id="pg-pin" aria-pressed="false">Pin current values to compare</button>
   </aside>
   <div class="stage">
+    <div id="pg-xb" class="xb" hidden aria-live="polite"></div>
     <div id="pg-error" class="err" hidden></div>
     <div id="pg-warn" class="warn" role="status" hidden></div>
-    <div id="pg-tiles" class="tiles"></div>
+    <div id="pg-tiles" class="tiles" aria-live="polite"></div>
     <div id="pg-visual"></div>
     <div id="pg-sweep-wrap" hidden>
       <div class="sub-head">
@@ -124,11 +126,17 @@
   function sizeKey(c) { var s = PG.size(c, raw); return c.type === 'vector' ? String(s.len) : c.type === 'matrix' ? s.rows + 'x' + s.cols : ''; }
   /* rebuild every vector/matrix whose size slider changed, whichever control or button changed it */
   function resized() { controls.forEach(function (c) { if (widgets[c.id] && widgets[c.id].getAttribute('data-size') !== sizeKey(c)) build(c); }); }
-  function numInput(c, get, set) {
-    var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get() });
+  /* typed values: blank or invalid input keeps the last valid value, out-of-range input is clamped,
+     and either case is said next to the control instead of happening silently */
+  function say(note, msg) { note.textContent = msg; note.hidden = !msg; }
+  function numInput(c, get, set, note, name) {
+    var i = el('input', { type: 'number', min: c.min, max: c.max, step: c.step, value: get(), 'aria-label': name });
     i.addEventListener('input', function () {
       var v = parseFloat(i.value);
-      if (isFinite(v)) { set(Math.min(c.max, Math.max(c.min, v))); update(); }
+      if (!isFinite(v)) { say(note, name + ': enter a number (still using ' + H.fmt(get(), 4) + ').'); return; }
+      var w = Math.min(c.max, Math.max(c.min, v));
+      say(note, w !== v ? name + ': allowed range is ' + H.fmt(c.min, 4) + ' to ' + H.fmt(c.max, 4) + ', using ' + H.fmt(w, 4) + '.' : '');
+      set(w); update();
     });
     i.addEventListener('change', function () { i.value = get(); });
     return i;
@@ -141,13 +149,17 @@
     lab.innerHTML = c.label;
     if (lab.tagName === 'LABEL') lab.setAttribute('for', fid);
     w.appendChild(lab);
-    var row = el('div', { 'class': 'row' });
+    var row = el('div', { 'class': 'row' }), note = el('div', { 'class': 'ctl-note', role: 'status' }), name = plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1');
+    note.hidden = true;
     if (c.type === 'slider') {
-      var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] }), o = el('output', {}, H.fmt(raw[c.id], 4));
-      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); o.textContent = H.fmt(raw[c.id], 4); update(); });
-      row.appendChild(rg); row.appendChild(o);
+      /* the slider and an exact-value box stay in sync */
+      var rg = el('input', { type: 'range', id: fid, min: c.min, max: c.max, step: c.step, value: raw[c.id] });
+      var nb = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = PG.coerce(c, v); rg.value = raw[c.id]; }, note, name + ' (exact value)');
+      nb.className = 'sl-num';
+      rg.addEventListener('input', function () { raw[c.id] = PG.coerce(c, rg.value); nb.value = raw[c.id]; say(note, ''); update(); });
+      row.appendChild(rg); row.appendChild(nb);
     } else if (c.type === 'number') {
-      var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; });
+      var ni = numInput(c, function () { return raw[c.id]; }, function (v) { raw[c.id] = v; }, note, name);
       ni.id = fid; row.appendChild(ni);
     } else if (c.type === 'toggle') {
       var cb = el('input', { type: 'checkbox', id: fid, role: 'switch' });
@@ -163,20 +175,21 @@
     } else if (c.type === 'vector') {
       var len = PG.size(c, raw).len, cells = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + Math.min(len, 4) + ',auto)' });
       for (var i = 0; i < len; i++) (function (i) {
-        var cell = el('div');
-        cell.appendChild(el('span', {}, c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1)));
-        cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }));
+        var cell = el('div'), tag = c.labels && c.labels[i] !== undefined ? String(c.labels[i]) : String(i + 1);
+        cell.appendChild(el('span', {}, tag));
+        cell.appendChild(numInput(c, function () { return raw[c.id][i]; }, function (v) { raw[c.id][i] = v; }, note, name + ', entry ' + tag));
         cells.appendChild(cell);
       })(i);
       row.appendChild(cells);
     } else if (c.type === 'matrix') {
       var sz = PG.size(c, raw), grid = el('div', { 'class': 'cells', style: 'grid-template-columns:repeat(' + sz.cols + ',auto)' });
       for (var r = 0; r < sz.rows; r++) for (var k = 0; k < sz.cols; k++) (function (r, k) {
-        grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }));
+        grid.appendChild(numInput(c, function () { return raw[c.id][r][k]; }, function (v) { raw[c.id][r][k] = v; }, note,
+          name + ', row ' + (r + 1) + ', column ' + (k + 1)));
       })(r, k);
       row.style.overflowX = 'auto'; row.appendChild(grid);
     }
-    w.appendChild(row);
+    w.appendChild(row); w.appendChild(note);
     w.setAttribute('data-size', sizeKey(c));
   }
   function buildAll() { controls.forEach(build); }
@@ -263,7 +276,10 @@
     $('pg-error').hidden = !msg; $('pg-error').textContent = msg;
     var warn = out && typeof out.warning === 'string' ? out.warning.trim() : '';
     $('pg-warn').hidden = !warn; $('pg-warn').textContent = warn ? 'These settings are outside what the method allows: ' + warn : '';
-    readouts.forEach(function (r, i) { rows[i].innerHTML = out ? show(PG.get(out, r.key), r) : '–'; });
+    readouts.forEach(function (r, i) {
+      var v = out ? PG.get(out, r.key) : undefined, b = pinned ? pinned[i] : undefined;
+      rows[i].innerHTML = out ? show(v, r) + (typeof v === 'number' && typeof b === 'number' ? '<span class="delta">' + H.esc(change(v - b, r.digits)) + ' vs pinned</span>' : '') : '–';
+    });
     tiles.forEach(function (t) {
       var r = readouts[t.i];
       t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
@@ -362,13 +378,69 @@
     try { $('pg-sweep').innerHTML = (panels.length ? H.grid(2, panels) : '') + note; wrap.hidden = false; } catch (e2) { wrap.hidden = true; }
   }
 
-  $('pg-reset').addEventListener('click', function () { load({}); });
-  Array.prototype.forEach.call(document.querySelectorAll('button[data-set]'), function (b) {
+  /* pin: freeze the current values so every number in the table also shows its change since then */
+  var pinned = null;
+  function change(d, digits) { return Math.abs(d) < 1e-12 ? 'no change' : (d > 0 ? '+' : '−') + H.fmt(Math.abs(d), digits); }
+  $('pg-pin').addEventListener('click', function () {
+    if (pinned) pinned = null;
+    else {
+      var o = null; try { o = compute(PG.params(controls, raw)); } catch (e) { o = null; }
+      pinned = readouts.map(function (r) { return o ? PG.get(o, r.key) : undefined; });
+    }
+    $('pg-pin').textContent = pinned ? 'Clear pinned values' : 'Pin current values to compare';
+    $('pg-pin').setAttribute('aria-pressed', pinned ? 'true' : 'false');
+    update();
+  });
+
+  /* guided explorations: the button loads the set-up (state a) or the set-up plus its second step (state b);
+     a banner in the playground keeps the exploration text on screen and compares both states */
+  var EX = D.explorations || [], active = null;
+  function exState(ex, which) {
+    var a = PG.merge(controls, PG.defaults(controls), ex.set || {}).raw;
+    return which === 'b' ? PG.merge(controls, a, ex.then || {}).raw : a;
+  }
+  function explore(i, which) {
+    var ex = EX[i]; if (!ex) return;
+    /* "2 · Then" inside a running exploration changes only its own controls, so values the learner edited
+       after the set-up stay; from the card it loads the whole preset */
+    var inPlace = which === 'b' && active && active.i === i;
+    active = { i: i, which: which };
+    raw = inPlace ? PG.merge(controls, raw, ex.then || {}).raw : exState(ex, which);
+    buildAll(); update(); banner();
+  }
+  function banner() {
+    var box = $('pg-xb');
+    if (!active) { box.hidden = true; box.innerHTML = ''; return; }
+    var ex = EX[active.i], two = !!ex.thenText, h = '';
+    h += '<div class="xb-top"><span class="xb-k">Exploration ' + (active.i + 1) + '</span><b>' + ex.title + '</b>' +
+      '<button type="button" class="xb-x" aria-label="Close the exploration">×</button></div>';
+    h += '<p><b>Observe:</b> ' + ex.observe + '</p>';
+    if (two) {
+      h += '<div class="xb-states" role="group" aria-label="Exploration step">' +
+        '<button type="button" data-xs="a" aria-pressed="' + (active.which === 'a') + '">1 · Set-up</button>' +
+        '<button type="button" data-xs="b" aria-pressed="' + (active.which === 'b') + '">2 · Then ' + H.esc(ex.thenText) + '</button></div>';
+      var oa = null, ob = null;
+      try { oa = compute(PG.params(controls, exState(ex, 'a'))); ob = compute(PG.params(controls, exState(ex, 'b'))); } catch (e) { oa = ob = null; }
+      var trs = oa && ob ? readouts.filter(function (r) { return typeof PG.get(oa, r.key) === 'number' && typeof PG.get(ob, r.key) === 'number'; })
+        .map(function (r) {
+          var a = PG.get(oa, r.key), b = PG.get(ob, r.key);
+          return '<tr><td>' + r.label + '</td><td class="val">' + H.esc(H.fmt(a, r.digits)) + '</td><td class="val">' + H.esc(H.fmt(b, r.digits)) +
+            '</td><td class="val">' + H.esc(change(b - a, r.digits)) + '</td></tr>';
+        }) : [];
+      if (trs.length) h += '<table class="xb-cmp"><thead><tr><th>Value (preset settings)</th><th>1 · Set-up</th><th>2 · Then</th><th>Change</th></tr></thead><tbody>' + trs.join('') + '</tbody></table>';
+    }
+    if (ex.verified) h += '<p class="xb-ok">✓ The calculation confirms this observation at ' + (two ? 'these two settings' : 'this setting') + '.</p>';
+    box.innerHTML = h; box.hidden = false;
+    box.querySelector('.xb-x').addEventListener('click', function () { active = null; banner(); });
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-xs]'), function (b) {
+      b.addEventListener('click', function () { explore(active.i, b.getAttribute('data-xs')); });
+    });
+  }
+  $('pg-reset').addEventListener('click', function () { active = null; banner(); load({}); });
+  Array.prototype.forEach.call(document.querySelectorAll('button[data-ex]'), function (b) {
     b.addEventListener('click', function () {
-      var over = {};
-      try { over = JSON.parse(b.getAttribute('data-set')); } catch (e) {}
       var before = JSON.stringify(raw);
-      load(over);
+      explore(Number(b.getAttribute('data-ex')), b.getAttribute('data-state') === 'b' ? 'b' : 'a');
       /* always answer the click: say what was applied and flash the results */
       var note = b.parentNode.querySelector('.applied') || b.parentNode.appendChild(el('span', { 'class': 'applied' }));
       note.textContent = JSON.stringify(raw) === before ? 'These settings are already loaded: read the values in the playground.' : 'Settings applied in the playground.';

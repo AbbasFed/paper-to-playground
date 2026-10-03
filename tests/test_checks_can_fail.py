@@ -51,7 +51,8 @@ CASES = {
     "json_controls": cand("<controls> is '[{type: slider'", controls="[{type: slider"),
     "json_readouts": cand("<readouts> is '[{'", readouts="[{"),
     "json_tests": cand("<tests> is '[{,]'", tests="[{,]"),
-    "content_complete": cand("empty 'why' and no steps", content=dict(CONTENT, why="", steps=[])),
+    "content_complete": cand("empty limitation and formula", content=dict(CONTENT, limitation="", formula="")),
+    "content_fallbacks": cand("empty 'why' and no steps (template fallbacks, no repair)", content=dict(CONTENT, why="", steps=[])),
     "content_no_latex": cand("formula with \\begin{pmatrix}", content=dict(CONTENT, formula="\\begin{pmatrix} a \\end{pmatrix}")),
     "quotes_grounded": cand("the only quote is not in the excerpt", content=dict(CONTENT, quotes=["words that never occur in the source text"])),
     "quotes_dropped": cand("one good and one invented quote", content=dict(CONTENT, quotes=[GOOD_QUOTE, "an invented sentence about attention heads"])),
@@ -70,7 +71,8 @@ CASES = {
     "compute_defaults": cand("compute returns NaN at the defaults", compute=COMPUTE.replace("total: H.sum(p.p)", "total: NaN")),
     "edge_sweep": cand("compute throws when n is at its max", compute=COMPUTE.replace("var rs", "if (p.n === 5) throw new Error('max breaks');\n  var rs")),
     "edge_infinity": cand("compute divides by k-1 (Infinity at k=1)", compute=COMPUTE.replace("grand: H.sum(rs)", "grand: H.sum(rs) / (p.k - 1)")),
-    "controls_meaningful": cand("compute ignores the values in M", compute=COMPUTE.replace("H.sum(row)", "0")),
+    "controls_meaningful": cand("neither compute nor render uses the values in M", compute=COMPUTE.replace("H.sum(row)", "0"),
+                                render=RENDER.replace("matrix: p.M", "matrix: [[0]]")),
     "test: known case": cand("known case expects total 99", tests=[TESTS[0], TESTS[1], dict(TESTS[2], expect="out.total === 99")]),
     "tests_present": cand("no tests", tests=[]),
     "invariant: total stays small": cand("invariant true at defaults, false when p is all 9",
@@ -79,9 +81,14 @@ CASES = {
     "render_edges": cand("render prints NaN when n is at its max",
                          render=RENDER.replace("return H.grid", "if (p.n === 5) return '<svg><text>NaN</text></svg>';\n  return H.grid")),
     "explorations_at_defaults": cand("exploration 1 sets n to its default 3", content=explore_set({"n": 3})),
+    "explorations_distinct": cand("both explorations set n = 2, r = 1 and nothing else",
+                                  content=dict(CONTENT, explorations=[dict(e, set={"n": 2, "r": 1}, then={}) for e in CONTENT["explorations"]])),
     "exploration_numbers": cand("exploration text quotes 7.25, a value compute() never produces there",
                                 content=dict(CONTENT, explorations=[dict(CONTENT["explorations"][0], observe="The total reads 7.25 after shrinking"),
                                                                     CONTENT["explorations"][1]])),
+    "exploration_claims": cand("exploration 1 claims a total above 100",
+                               content=dict(CONTENT, explorations=[dict(CONTENT["explorations"][0], expect="out.total > 100"),
+                                                                   CONTENT["explorations"][1]])),
     "resize_sweep": cand("compute throws at the inner size n=4", compute=COMPUTE.replace("var rs", "if (p.p.length === 4) throw new Error('size 4');\n  var rs")),
     "readouts_resolve": cand("no readout key exists in out", readouts=[{"key": "nope1", "label": "a"}, {"key": "nope2", "label": "b"}]),
     "page_self_contained": ("page with a CDN stylesheet", lambda: C.page_checks(good_page() + '<link rel="stylesheet" href="https://cdn.example/x.css">')),
@@ -97,6 +104,26 @@ class GoodBaseline(unittest.TestCase):
     def test_good_candidate_fails_nothing(self):
         self.assertEqual([c["name"] for c in C.evaluate(tags(), EXCERPT)[1] if not c["ok"]], [])
         self.assertEqual([c["name"] for c in C.page_checks(good_page(), "sk-test-123") if not c["ok"]], [])
+
+
+class ExplorationClaims(unittest.TestCase):
+    def claim(self, expect):
+        content = dict(CONTENT, explorations=[dict(CONTENT["explorations"][0], expect=expect), CONTENT["explorations"][1]])
+        return [c for c in C.evaluate(tags(content=content), EXCERPT)[1] if c["name"] == "exploration_claims"][0]
+
+    def test_true_claim_passes(self):
+        self.assertTrue(self.claim("out.count === 1 && out.total >= 0")["ok"])
+
+    def test_false_claim_is_hard_and_names_the_false_part(self):
+        c = self.claim("out.count === 1 && out.total > 100")
+        self.assertEqual((c["ok"], c["severity"]), (False, "hard"))
+        self.assertIn("out.total > 100", c["message"])
+
+    def test_expect_reading_a_missing_output_is_only_unverified(self):
+        # rowSums is a vector: rowSums[0][0] does not exist, so this says nothing about the claim
+        c = self.claim("out.count === 1 && Math.abs(out.rowSums[0][0] - 1) < 1e-9")
+        self.assertEqual((c["ok"], c["severity"]), (False, "soft"))
+        self.assertIn("malformed", c["message"])
 
 
 class EveryCheckCanFail(unittest.TestCase):
