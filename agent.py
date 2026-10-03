@@ -19,12 +19,11 @@ from trace import Trace
 HERE = os.path.dirname(os.path.abspath(__file__))
 EXCERPT_KEYS = ["excerpt", "paper_excerpt", "source_excerpt", "text", "section_text", "content", "passage", "section", "body", "paper_text", "abstract"]
 NOT_EXCERPT = ("url", "focus", "audience", "brief", "title", "goal", "task", "id", "name")
-MAX_EXCERPT_CHARS = 14000
+MAX_EXCERPT_CHARS = 40000     # only very long excerpts are shortened; a normal section is sent whole
 GEN_MAX_TOKENS = 9000
 REPAIR_MAX_TOKENS = 5000
 MAX_REPAIRS = 2
-REASONING = {"off": {"enabled": False}, "low": {"effort": "low", "exclude": True}, "medium": {"effort": "medium", "exclude": True},
-             "high": {"effort": "high", "exclude": True}, "auto": None}
+REASONING_CHOICES = ["off", "none", "minimal", "low", "medium", "high", "xhigh", "max", "auto"]
 
 
 def read_prompt(name):
@@ -151,15 +150,19 @@ def run(args, trace, key, budget):
 
     system = read_prompt("system.txt")
     user = user_message(fields, ex_key, excerpt)
-    reasoning = REASONING[args.reasoning]
+    info = llm.model_info(args.model, budget, trace)
+    reasoning, why = llm.choose_reasoning(args.reasoning, info)
+    trace.event("prepare", "reasoning_setting", "ok", requested=args.reasoning, sent=reasoning, reason=why)
+    opts = {"temperature": args.temperature, "reasoning_info": info, "provider": args.provider}
 
     # ---- generate (a reply with no usable tags is regenerated once)
     tags, results, parts, report = {}, [], None, None
     for attempt in range(2):
         resp = llm.chat(args.model, [{"role": "system", "content": system}, {"role": "user", "content": user}],
-                        GEN_MAX_TOKENS, budget, trace, "generate", temperature=args.temperature, reasoning=reasoning)
+                        GEN_MAX_TOKENS, budget, trace, "generate", reasoning=reasoning, **opts)
         if resp is None:
             break
+        reasoning = resp["reasoning"]   # keep a lowered effort for later calls
         tags = C.parse_tags(resp["text"])
         trace.event("generate", "parse_tags", "ok" if len(tags) >= 4 else "failed", tags_found=sorted(tags), finish_reason=resp["finish_reason"])
         if args.debug:
@@ -193,9 +196,10 @@ def run(args, trace, key, budget):
         trace.event("repair", "revision", "requested", round=rnd, tags=involved,
                     reasons=[c["name"] + ": " + c["message"][:200] for c in C.hard_failures(best[3])])
         resp = llm.chat(args.model, [{"role": "system", "content": system}, {"role": "user", "content": msg}],
-                        REPAIR_MAX_TOKENS, budget, trace, "repair", temperature=args.temperature, reasoning=reasoning, max_attempts=2)
+                        REPAIR_MAX_TOKENS, budget, trace, "repair", reasoning=reasoning, max_attempts=2, **opts)
         if resp is None:
             break
+        reasoning = resp["reasoning"]
         if args.debug:
             write(os.path.join(args.output, "debug_repair_%d.txt" % rnd), resp["text"])
         new = {t: v for t, v in C.parse_tags(resp["text"]).items() if t != "plan"}
@@ -214,6 +218,11 @@ def run(args, trace, key, budget):
 
     # ---- assemble the best candidate
     _, tags, parts, results, report = best
+    relabelled = C.ground_labels(parts["content"], [fields[ex_key] if ex_key else excerpt] + [v for k, v in fields.items() if k != ex_key])
+    for note in relabelled:
+        trace.event("assemble", "label_grounding", "replaced", **note)
+    if not relabelled:
+        trace.event("assemble", "label_grounding", "ok", section=parts["content"]["section"], equation=parts["content"]["equation"])
     for note in C.finalise(parts, results, report):
         trace.event("assemble", "degrade", "applied", message=note)
     html = assemble.build_html(parts, meta)
@@ -238,8 +247,10 @@ def main():
     ap.add_argument("--input", required=True, help="case.json")
     ap.add_argument("--output", required=True, help="output directory")
     ap.add_argument("--model", required=True, help="OpenRouter model id")
-    ap.add_argument("--reasoning", choices=sorted(REASONING), default=os.environ.get("P2P_REASONING", "off"),
-                    help="reasoning setting sent to OpenRouter (auto = model default)")
+    ap.add_argument("--reasoning", choices=REASONING_CHOICES, default=os.environ.get("P2P_REASONING", "off"),
+                    help="reasoning effort (off = none = disabled, auto = model default); mapped to what the model supports")
+    ap.add_argument("--provider-prefs", default=os.environ.get("P2P_PROVIDER_PREFS", ""),
+                    help='OpenRouter provider preferences as a JSON object, e.g. \'{"sort": "throughput"}\'; off unless given')
     ap.add_argument("--temperature", type=float, default=0.3)
     ap.add_argument("--debug", action="store_true", help="also save raw model replies in the output directory")
     args = ap.parse_args()
@@ -247,7 +258,17 @@ def main():
     os.makedirs(args.output, exist_ok=True)
     key = os.environ.get("OPENROUTER_API_KEY", "").strip()
     trace = Trace(os.path.join(args.output, "trace.jsonl"), key)
+    args.provider = None
+    if args.provider_prefs.strip():
+        try:
+            args.provider = json.loads(args.provider_prefs)
+        except ValueError:
+            pass
+        if not isinstance(args.provider, dict):
+            trace.event("start", "provider_prefs", "ignored", error="--provider-prefs must be a JSON object")
+            args.provider = None
     trace.event("start", "run", "ok", input=os.path.basename(args.input), model=args.model, reasoning=args.reasoning,
+                provider_prefs=args.provider or "off",
                 limits={"requests": llm.MAX_REQUESTS, "completion_tokens": llm.MAX_COMPLETION_TOKENS, "deadline_s": llm.DEADLINE_S})
     code, budget, results = 1, llm.Budget(), []
     try:

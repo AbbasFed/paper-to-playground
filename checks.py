@@ -373,6 +373,42 @@ def quote_score(quote, excerpt_norm):
     return worst
 
 
+UNGROUNDED_LABEL = "the provided excerpt"
+
+
+def label_grounded(label, kind, sources):
+    """True if a section/equation label can be traced to the supplied text (excerpt or another case field)."""
+    raw = "\n".join(s for s in sources if s).lower()
+    text = _norm(raw)
+    lab = _norm(re.sub(r"<[^>]+>", "", label or ""))
+    nums = re.findall(r"\d+(?:\.\d+)*", lab)
+    if nums:   # "§3.2.1", "Section 6", "Eq. (1)": every number must occur in a matching form
+        for n in nums:
+            e = re.escape(n)
+            pats = [r"(?<![\d.])%s(?![\d])" % e] if "." in n else []   # a dotted number like 3.2.1 is specific on its own
+            if kind == "section":
+                pats += [r"(?:section|sec\.?|§)\s*%s(?![\d])" % e]
+                if not re.search(r"(?m)^\s*%s\.?\s+\w" % e, raw) and not any(re.search(p, text) for p in pats):
+                    return False
+            elif not any(re.search(p, text) for p in pats + [r"eq(?:uation|n)?\.?\s*\(?\s*%s\s*\)?(?![\d])" % e, r"\(\s*%s\s*\)" % e]):
+                return False
+        return True
+    words = re.sub(r"[^a-z0-9]+", " ", re.sub(r"\b(?:section|sec|equation|eqn|eq|the|of)\b", " ", lab)).split()
+    return bool(words) and " %s " % " ".join(words) in " %s " % " ".join(re.sub(r"[^a-z0-9]+", " ", text).split())
+
+
+def ground_labels(content, sources):
+    """Replace a section/equation label that the inputs do not support. Returns notes for the trace."""
+    notes = []
+    for kind in ("section", "equation"):
+        label = content.get(kind, "")
+        if label and label != UNGROUNDED_LABEL and not label_grounded(label, kind, sources):
+            content[kind] = UNGROUNDED_LABEL
+            notes.append({"field": kind, "label": label, "replaced_with": UNGROUNDED_LABEL,
+                          "reason": "label not found in the excerpt or any other case field"})
+    return notes
+
+
 # ---------------------------------------------------------------- JS engine
 
 def new_engine():

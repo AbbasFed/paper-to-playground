@@ -6,11 +6,14 @@ import time
 import requests
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
+MODELS_URL = "https://openrouter.ai/api/v1/models"
 MAX_REQUESTS = 10
 MAX_COMPLETION_TOKENS = 30000
 DEADLINE_S = 510.0        # 8.5 min: leaves margin inside the 10 min limit for assembly and writing
 CALL_TIMEOUT_S = 150.0
 TOKEN_MARGIN = 500        # never plan to spend the last few completion tokens
+EMPTY_CONTENT_TOKENS = 16  # visible tokens (completion - reasoning) at or below this mean the model wrote nothing
+EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "max"]   # OpenRouter effort scale, lowest first
 
 
 class Budget:
@@ -48,6 +51,70 @@ class Budget:
                 "elapsed_s": round(self.elapsed(), 2)}
 
 
+# ---------------------------------------------------------------- reasoning settings
+
+def model_info(model, budget, trace):
+    """The model's `reasoning` capabilities from GET /api/v1/models, or None if they cannot be read.
+    The lookup is an OpenRouter API request, so it counts toward the request cap."""
+    why = budget.allow(min_tokens=0, min_time=60.0)
+    if why:
+        trace.event("prepare", "model_info", "skipped", reason=why)
+        return None
+    budget.requests += 1
+    t = time.monotonic()
+    try:
+        r = requests.get(MODELS_URL, timeout=(5, 20), headers={"User-Agent": "paper-to-playground"})
+        r.raise_for_status()
+        m = next((x for x in r.json().get("data", []) if isinstance(x, dict) and x.get("id") == model), None)
+    except (requests.RequestException, ValueError, AttributeError) as e:
+        trace.event("prepare", "model_info", "failed", error=type(e).__name__, request_no=budget.requests,
+                    elapsed_s=round(time.monotonic() - t, 2))
+        return None
+    if m is None:
+        trace.event("prepare", "model_info", "not_found", model=model, request_no=budget.requests, elapsed_s=round(time.monotonic() - t, 2))
+        return None
+    info = dict(m.get("reasoning") or {}, supported="reasoning" in (m.get("supported_parameters") or []))
+    trace.event("prepare", "model_info", "ok", model=model, reasoning=info, request_no=budget.requests, elapsed_s=round(time.monotonic() - t, 2))
+    return info
+
+
+def _efforts(info):
+    return [e for e in EFFORTS if e in ((info or {}).get("supported_efforts") or [])]
+
+
+def choose_reasoning(requested, info):
+    """Map --reasoning to a `reasoning` object this model accepts. Reasoning text is always excluded.
+    Returns (object or None, why)."""
+    if info is not None and not info.get("supported"):
+        return {"exclude": True}, "model does not advertise reasoning support"
+    efforts, mandatory = _efforts(info), bool((info or {}).get("mandatory"))
+    if requested == "auto":
+        return {"exclude": True}, "model default"
+    if requested in ("off", "none"):
+        if mandatory and efforts:   # cannot be switched off: use the cheapest allowed effort instead
+            return {"effort": efforts[0], "exclude": True}, "reasoning is mandatory for this model; lowest effort %r" % efforts[0]
+        return {"enabled": False, "exclude": True}, "reasoning disabled"
+    if info is None or not efforts or requested in efforts:
+        return {"effort": requested, "exclude": True}, "effort %r" % requested
+    lower = [e for e in efforts if EFFORTS.index(e) <= EFFORTS.index(requested)]
+    pick = lower[-1] if lower else efforts[0]
+    return {"effort": pick, "exclude": True}, "effort %r not offered (supported: %s); using %r" % (requested, ", ".join(efforts), pick)
+
+
+def lower_reasoning(reasoning, info):
+    """One step down the effort scale for a retry, or None when nothing lower is allowed."""
+    if not reasoning or reasoning.get("enabled") is False:
+        return None
+    efforts = _efforts(info) or ["low", "medium", "high"]
+    cur = reasoning.get("effort") or (info or {}).get("default_effort") or "high"
+    below = [e for e in efforts if cur in EFFORTS and EFFORTS.index(e) < EFFORTS.index(cur)]
+    if below:
+        return {"effort": below[-1], "exclude": True}
+    return None if (info or {}).get("mandatory") else {"enabled": False, "exclude": True}
+
+
+# ---------------------------------------------------------------- chat
+
 def _post(payload, key, timeout, box):
     try:
         r = requests.post(URL, json=payload, timeout=(10, timeout),
@@ -61,22 +128,29 @@ def _post(payload, key, timeout, box):
         box["error"] = type(e).__name__
 
 
-def chat(model, messages, max_tokens, budget, trace, stage, temperature=0.3, reasoning=None, max_attempts=3):
+def chat(model, messages, max_tokens, budget, trace, stage, temperature=0.3, reasoning=None, max_attempts=3,
+         reasoning_info=None, provider=None):
     """One logical call with retries. Every HTTP attempt counts toward the request cap.
-    Returns {'text', 'finish_reason'} or None."""
+    A reply that is empty or cut off at max_tokens is logged as a failure and retried once with lower
+    reasoning effort; if that also fails, a cut-off reply is still returned so repair can finish it.
+    Returns {'text', 'finish_reason', 'reasoning'} or None."""
     key = os.environ.get("OPENROUTER_API_KEY", "")
     backoff = [2.0, 5.0, 8.0]
-    for attempt in range(max_attempts):
+    attempt, failures, guard_used, salvage = 0, 0, False, ""
+    while True:
         why = budget.allow()
         if why:
             trace.event(stage, "llm_call", "skipped", reason=why)
-            return None
+            break
         cap = int(min(max_tokens, budget.tokens_left()))
         timeout = max(5.0, min(CALL_TIMEOUT_S, budget.time_left() - 10.0))
         payload = {"model": model, "messages": messages, "max_tokens": cap, "temperature": temperature, "usage": {"include": True}}
         if reasoning:
             payload["reasoning"] = reasoning
+        if provider:
+            payload["provider"] = provider
         budget.requests += 1
+        attempt += 1
         t = time.monotonic()
         box = {}
         th = threading.Thread(target=_post, args=(payload, key, timeout, box), daemon=True)
@@ -93,26 +167,47 @@ def chat(model, messages, max_tokens, budget, trace, stage, temperature=0.3, rea
         budget.reasoning_tokens += rt
         if not usage and status in (None, 200):
             budget.unverified_tokens += cap
-        info = {"request_no": budget.requests, "attempt": attempt + 1, "model": model, "max_tokens": cap, "http_status": status,
+        info = {"request_no": budget.requests, "attempt": attempt, "model": model, "max_tokens": cap, "reasoning": reasoning, "http_status": status,
                 "generation_id": data.get("id"), "prompt_tokens": pt, "completion_tokens": ct, "reasoning_tokens": rt, "elapsed_s": elapsed}
 
         choice = (data.get("choices") or [{}])[0] if status == 200 else {}
-        text = ((choice.get("message") or {}).get("content") or "") if isinstance(choice, dict) else ""
-        if status == 200 and isinstance(text, str) and text.strip() and not data.get("error"):
-            info["finish_reason"] = choice.get("finish_reason")
-            trace.event(stage, "llm_call", "ok", chars=len(text), **info)
-            return {"text": text, "finish_reason": choice.get("finish_reason")}
+        choice = choice if isinstance(choice, dict) else {}
+        text = (choice.get("message") or {}).get("content") or ""
+        if status == 200 and isinstance(text, str) and not data.get("error") and not choice.get("error"):
+            fr = choice.get("finish_reason")
+            info["finish_reason"] = fr
+            empty = not text.strip() or (ct - rt <= EMPTY_CONTENT_TOKENS and len(text.strip()) < 400)
+            if not empty and fr != "length":
+                trace.event(stage, "llm_call", "ok", chars=len(text), **info)
+                return {"text": text, "finish_reason": fr, "reasoning": reasoning}
+            if empty:
+                problem = "empty content (%d completion - %d reasoning tokens)" % (ct, rt)
+            else:
+                problem = "cut off at max_tokens (finish_reason=length; %d completion tokens, %d of them reasoning)" % (ct, rt)
+                salvage = text if len(text) > len(salvage) else salvage
+            lower = lower_reasoning(reasoning, reasoning_info)
+            retry = not guard_used and (lower is not None or empty)
+            trace.event(stage, "llm_call", "failed", error=problem, chars=len(text), will_retry=retry,
+                        retry_reasoning=(lower or reasoning) if retry else None, **info)
+            if not retry:
+                break
+            guard_used = True
+            reasoning = lower or reasoning
+            continue
 
-        err = data.get("error") if isinstance(data.get("error"), dict) else (choice.get("error") if isinstance(choice, dict) and isinstance(choice.get("error"), dict) else {})
+        failures += 1
+        err = data.get("error") if isinstance(data.get("error"), dict) else (choice.get("error") if isinstance(choice.get("error"), dict) else {})
         msg = str(err.get("message") or box.get("error") or box.get("text") or ("timeout" if th.is_alive() else "empty response"))[:240]
         if key:
             msg = msg.replace(key, "[REDACTED]")
         retry = status is None or status in (408, 409, 425, 429) or status >= 500 or status == 200
         if status == 400 and reasoning and "reason" in msg.lower():
             reasoning, retry = None, True   # model rejects the reasoning setting: retry without it
-        trace.event(stage, "llm_call", "failed", error=msg, will_retry=bool(retry and attempt + 1 < max_attempts), **info)
-        if not retry:
-            return None
-        if attempt + 1 < max_attempts:
-            time.sleep(min(backoff[attempt], max(0.0, budget.time_left() - 20.0)))
+        trace.event(stage, "llm_call", "failed", error=msg, will_retry=bool(retry and failures < max_attempts), **info)
+        if not retry or failures >= max_attempts:
+            break
+        time.sleep(min(backoff[min(failures, len(backoff)) - 1], max(0.0, budget.time_left() - 20.0)))
+    if salvage:
+        trace.event(stage, "llm_call", "salvaged", chars=len(salvage), reason="kept the cut-off reply; missing parts go to repair")
+        return {"text": salvage, "finish_reason": "length", "reasoning": reasoning}
     return None

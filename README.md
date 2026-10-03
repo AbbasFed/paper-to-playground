@@ -26,17 +26,19 @@ Outputs:
 
 Exit code `0` when a working page was written, non-zero otherwise (the trace is always written).
 
-Optional flags: `--reasoning {off,low,medium,high,auto}` (default `off`, see "Token efficiency"),
-`--temperature` (default 0.3), `--debug` (also saves the raw model replies next to the page).
+Optional flags: `--reasoning {off,none,minimal,low,medium,high,xhigh,max,auto}` (default `off`; mapped to what
+the model supports, see "Token efficiency"), `--provider-prefs '<JSON>'` (OpenRouter provider preferences;
+**off by default**, also settable as `P2P_PROVIDER_PREFS`), `--temperature` (default 0.3), `--debug` (also saves
+the raw model replies next to the page).
 
 ### Input
 
 `case.json` is a UTF-8 JSON object. No field name is hard-coded: every field is passed to the model labelled by
 its key. The excerpt is found by name (`excerpt`, `text`, `section`, `content`, ...) or, failing that, as the
-longest text field. Only if a case has no excerpt at all does the agent try `source_url` once, with a 3 second
-timeout; a long fetched paper is cut to the part that best matches the brief. If the fetch fails (as it will when
-network access is limited to OpenRouter) the agent carries on from the brief alone, and quotes are omitted because
-they cannot be verified.
+longest text field, and sent whole unless it is longer than about 40,000 characters (a longer text is cut to the
+part that best matches the brief). Only if a case has no excerpt at all does the agent try `source_url` once, with
+a 3 second timeout. If the fetch fails (as it will when network access is limited to OpenRouter) the agent carries
+on from the brief alone, and quotes are omitted because they cannot be verified.
 
 ## Architecture
 
@@ -47,7 +49,7 @@ template turns them into the page. No agent framework; a plain `requests` loop.
 ```
 case.json
    |
-[Prepare]   read all fields, locate the excerpt, trim it, open the trace
+[Prepare]   read all fields, locate the excerpt, open the trace, read the model's reasoning options (GET /models)
    |
 [Generate]  1 LLM call -> <plan> <content> <controls> <compute> <render> <readouts> <tests>
    |
@@ -71,6 +73,8 @@ case.json
 | `templates/helpers.js` | `H`: SVG charts/diagrams and math helpers used by generated code |
 | `templates/harness.js` | the checker that runs inside V8 |
 | `cases/` | six practice inputs |
+| `tests/` | offline unit tests, no API calls: `python -m unittest discover -s tests` |
+| `PROGRESS.md` | done / next / known issues |
 | `examples/attention/` | one committed input/output pair |
 
 ### What every page contains
@@ -94,7 +98,9 @@ Each check is logged to the trace with pass / fail / warn and a message.
    a limitation, section and equation, at least 1 simplification; leaked LaTeX is converted to Unicode/HTML, and any
    that remains fails the check.
 3. **Grounding** – every quote must occur in the excerpt (whitespace- and case-normalised, fuzzy match >= 0.9).
-   Unmatched quotes are dropped; if none survive the check fails and is repaired.
+   Unmatched quotes are dropped; if none survive the check fails and is repaired. The cited section and equation
+   labels must also appear in the excerpt or another case field (e.g. `3.2.1`, `Section 6`, `(1)`, `Eq. 1`);
+   otherwise they are replaced by "the provided excerpt" and the replacement is logged.
 4. **Controls** – at least 2 valid controls, unique ids, defaults inside ranges; exploration and test settings must fit the controls.
 5. **Purity** – generated code may not use `fetch`, `import()`, XHR, the DOM, `Math.random`, `Date` or URLs.
 6. **Execution in V8** (`mini-racer`) –
@@ -128,7 +134,7 @@ Enforced in `llm.py` by a single `Budget` object consulted before every HTTP att
 | Limit (assignment) | Guard |
 | --- | --- |
 | 10 minutes wall clock | global deadline of 510 s; per-call timeout `min(150 s, time left - 10 s)` with a hard thread join |
-| 10 API requests incl. retries | every HTTP attempt increments the counter; no call is made at 10 |
+| 10 API requests incl. retries | every HTTP attempt increments the counter, including the one `GET /models` lookup; no call is made at 10 |
 | 30,000 completion tokens | `max_tokens` is set on every call to `min(planned, remaining - 500)`; planned is 9000 (generate) and 5000 (repair) |
 
 Retries (429, 5xx, timeouts, empty replies) use a short backoff and count toward the request cap. A call that
@@ -141,6 +147,19 @@ practice cases with `deepseek/deepseek-v4.1-flash`: with `effort: low` a case co
 and 3 to 8 minutes, and two of three runs ran out of budget; with reasoning off the same cases cost about 3k
 completion tokens and finish in well under a minute with all checks passing. If a model rejects the
 reasoning setting, the call is retried without it.
+
+Before the first call the agent reads the model's `reasoning` object from `GET /api/v1/models`
+(`supported_efforts`, `mandatory`) and maps `--reasoning` onto it: `off` sends `{"enabled": false}` unless reasoning
+is mandatory (then the lowest supported effort), and an effort the model does not offer becomes the next lower one.
+`"exclude": true` is always sent, so reasoning text is never returned; only the `reasoning_tokens` count is logged.
+
+**Empty-content guard.** A reply that is empty (no content, or completion tokens minus reasoning tokens close to
+zero) or cut off (`finish_reason: "length"`) is logged as a failed call and retried once with the next lower
+reasoning effort; the retry counts toward the 10-request cap. If the retry also fails, a cut-off reply is kept and
+its missing parts are left to the repair step.
+
+**Iterative mechanisms.** The system prompt asks for an integer iterations slider (max 100) whenever the mechanism
+is an update applied repeatedly, with `compute()` running exactly that many steps and returning the history.
 
 ## Trace format
 
