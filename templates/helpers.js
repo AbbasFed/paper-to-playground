@@ -193,12 +193,14 @@ var H = (function () {
     o = o || {};
     var cat = arr(o.x).length && arr(o.x).some(function (v) { return typeof v !== 'number' || !isFinite(v); }) ? arr(o.x).map(String) : null;
     function catX(v) { if (!cat || typeof v === 'number') return Number(v); var k = cat.indexOf(String(v)); return k < 0 ? NaN : k; }
+    /* logY: plot log10(y) so values spanning orders of magnitude stay readable; non-positive values are skipped */
+    var logY = !!o.logY, LG = function (v) { return logY ? (v > 0 ? Math.log(v) / Math.LN10 : NaN) : v; };
     var series = arr(o.series).map(function (sr, i) {
-      var y = arr(sr && sr.y).map(Number);
+      var y = arr(sr && sr.y).map(Number).map(LG);
       var x = arr(sr && sr.x).length ? arr(sr.x).map(Number) : (arr(o.x).length && !cat ? arr(o.x).map(Number) : H.range(y.length));
       return { name: sr && sr.name !== undefined ? String(sr.name) : '', x: x, y: y, color: col(sr && sr.color, H.colors[i % 6]), dash: sr && sr.dash };
     });
-    var pts = arr(o.points).map(function (q) { return { x: catX(q && q.x), y: Number(q && q.y), label: q && q.label, color: q && q.color }; });
+    var pts = arr(o.points).map(function (q) { return { x: catX(q && q.x), y: LG(Number(q && q.y)), label: q && q.label, color: q && q.color }; });
     var marks = arr(o.markers).map(function (q) { return { x: catX(q && q.x), label: q && q.label }; });
     var w = n(o.w, 400), h = n(o.h, 290), named = series.filter(function (sr) { return sr.name; });
     var m = { l: 56, r: 16, t: (o.title ? 40 : 14) + (named.length ? 18 : 0), b: 48 };
@@ -211,16 +213,22 @@ var H = (function () {
     if (x1 === x0) { x0 -= 0.5; x1 += 0.5; }
     var pad = (y1 - y0) * 0.06 || Math.abs(y0) * 0.1 || 0.5; y0 -= pad; y1 += pad;
     /* a requested axis range may widen the view but never clips data into a false plateau */
-    if (o.yMin !== undefined && isFinite(o.yMin)) y0 = Math.min(y0, Number(o.yMin));
-    if (o.yMax !== undefined && isFinite(o.yMax)) y1 = Math.max(y1, Number(o.yMax));
+    if (o.yMin !== undefined && isFinite(LG(Number(o.yMin)))) y0 = Math.min(y0, LG(Number(o.yMin)));
+    if (o.yMax !== undefined && isFinite(LG(Number(o.yMax)))) y1 = Math.max(y1, LG(Number(o.yMax)));
     if (y1 <= y0) y1 = y0 + 1;
     var pw = w - m.l - m.r, ph = h - m.t - m.b;
     var X = function (v) { return m.l + (v - x0) / (x1 - x0) * pw; }, Y = function (v) { return m.t + ph - (H.clamp(v, y0, y1) - y0) / (y1 - y0) * ph; };
     var s = '', tx = ticks(x0, x1, 6), ty = ticks(y0, y1, 5), widest = 0;
-    ty.t.forEach(function (v) { widest = Math.max(widest, H.fmt(v, ty.d).length); });
+    if (logY) {   /* ticks on whole powers of ten */
+      var dec = [], e0 = Math.ceil(y0 - 1e-9), e1 = Math.floor(y1 + 1e-9), stepE = Math.max(1, Math.ceil((e1 - e0 + 1) / 6));
+      for (var ex = e0; ex <= e1; ex += stepE) dec.push(ex);
+      if (dec.length >= 2) ty = { t: dec, d: 0 };
+    }
+    var yText = function (v) { return logY ? H.fmt(Math.pow(10, v), 3) : H.fmt(v, ty.d); };
+    ty.t.forEach(function (v) { widest = Math.max(widest, yText(v).length); });
     if (widest * 7.4 + 26 > m.l) { m.l = widest * 7.4 + 26; pw = w - m.l - m.r; }
     if (o.title) s += T(w / 2, 20, o.title, { size: 15, bold: true });
-    ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' }) + T(m.l - 6, Y(v) + 4, H.fmt(v, ty.d), { anchor: 'end', size: 12.5, color: 'muted' }); });
+    ty.t.forEach(function (v) { s += H.line(m.l, Y(v), w - m.r, Y(v), { color: 'line', width: 1, dash: '3 4' }) + T(m.l - 6, Y(v) + 4, yText(v), { anchor: 'end', size: 12.5, color: 'muted' }); });
     if (cat) tx = { t: H.range(cat.length).filter(function (i) { return cat.length <= 12 || i % Math.ceil(cat.length / 12) === 0; }), d: 0 };
     tx.t.forEach(function (v) { s += H.line(X(v), m.t + ph, X(v), m.t + ph + 4, { color: 'muted', width: 1 }) + T(X(v), m.t + ph + 16, cat ? cat[v] : H.fmt(v, tx.d), { size: 12.5, color: 'muted' }); });
     s += H.line(m.l, m.t + ph, w - m.r, m.t + ph, { color: 'fg', width: 1 }) + H.line(m.l, m.t, m.l, m.t + ph, { color: 'fg', width: 1 });
@@ -243,7 +251,7 @@ var H = (function () {
       s += H.line(lx, m.t - 10, lx + 16, m.t - 10, { color: sr.color, width: 3 }) + T(lx + 21, m.t - 6, sr.name, { anchor: 'start', size: 12.5 });
       lx += 36 + sr.name.length * 7.2;
     });
-    if (o.yLabel) s += T(13, m.t + ph / 2, o.yLabel, { size: 12.5, color: 'muted', rotate: -90 });
+    if (o.yLabel || logY) s += T(13, m.t + ph / 2, (o.yLabel || '') + (logY ? ' (log scale)' : ''), { size: 12.5, color: 'muted', rotate: -90 });
     if (o.xLabel) s += T(m.l + pw / 2, h - 8, o.xLabel, { size: 12.5, color: 'muted' });
     return H.svg(w, h, s);
   };

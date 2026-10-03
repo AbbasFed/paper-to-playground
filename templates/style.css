@@ -54,6 +54,9 @@ header.hero { position: relative; overflow-x: clip; padding: 64px 0 0; backgroun
 .hero .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 .hero-card { position: relative; background: #fff; border-radius: 14px; padding: 28px 26px 44px; box-shadow: 0 24px 60px rgba(92, 0, 35, 0.16); border-top: 5px solid var(--primary); }
 .hero-card .formula { margin: 14px 0 6px; }
+.formula .eq { display: block; }
+.hero-card .formula.long { font-size: 1.06rem; line-height: 1.9; }
+.formula.long { font-size: 1.22rem; }
 .hero-card .badge { position: absolute; right: -14px; bottom: -34px; background: #fff; border-radius: 8px; padding: 10px 16px; box-shadow: 0 12px 30px rgba(92, 0, 35, 0.18); display: flex; align-items: center; gap: 10px; font-size: 0.86rem; color: var(--muted); }
 .hero-card .badge b { font-family: var(--head); font-size: 1.5rem; color: var(--primary); line-height: 1; }
 .hero .dot { position: absolute; border-radius: 50%; pointer-events: none; }
@@ -113,6 +116,8 @@ ol.steps li:nth-child(4n+4)::before { background: #e6f5ea; color: var(--good); }
 .ctl { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .ctl > label, .ctl > .lbl { display: block; font-weight: 600; font-size: 0.93rem; margin-bottom: 8px; line-height: 1.35; }
 .ctl .row { display: flex; align-items: center; gap: 10px; }
+.ctl[data-idle="1"] > label, .ctl[data-idle="1"] > .lbl { color: var(--muted); }
+.ctl[data-idle="1"]::after { content: "Does not change the computed values at the current settings"; display: block; margin-top: 6px; font-size: 0.76rem; font-style: italic; color: var(--muted); }
 .ctl output { flex: none; min-width: 3.4em; text-align: center; font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 0.9rem; color: var(--primary); background: var(--soft); border-radius: 6px; padding: 2px 8px; }
 .ctl input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 0; height: 22px; background: transparent; cursor: pointer; }
 .ctl input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--line); }
@@ -186,6 +191,9 @@ button.try:hover { background: var(--primary-dark); }
 .card dl { margin: 0 0 18px; flex: 1; }
 .card dt { display: inline-block; font-family: var(--head); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--primary); background: var(--soft); border-radius: 999px; padding: 2px 12px; margin-top: 14px; }
 .card dd { margin: 6px 0 0; }
+.applied { display: inline-block; margin-left: 12px; font-size: 0.84rem; color: var(--muted); font-style: italic; }
+@keyframes pgflash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 3px transparent; } }
+.stage.flash .tile, .stage.flash .pg-cell { animation: pgflash 1.4s ease-out 1; }
 .limit-box { max-width: 900px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--accent); border-radius: 12px; padding: 22px 26px; box-shadow: var(--shadow); font-size: 1.05rem; }
 .limit-box p { margin: 0; }
 .ground { max-width: 980px; margin: 0 auto; }

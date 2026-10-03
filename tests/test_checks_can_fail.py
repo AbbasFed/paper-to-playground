@@ -78,6 +78,7 @@ CASES = {
     "render_defaults": cand("render returns no <svg>", render="function render(p, out) { return '<div>no picture</div>'; }"),
     "render_edges": cand("render prints NaN when n is at its max",
                          render=RENDER.replace("return H.grid", "if (p.n === 5) return '<svg><text>NaN</text></svg>';\n  return H.grid")),
+    "explorations_at_defaults": cand("exploration 1 sets n to its default 3", content=explore_set({"n": 3})),
     "exploration_numbers": cand("exploration text quotes 7.25, a value compute() never produces there",
                                 content=dict(CONTENT, explorations=[dict(CONTENT["explorations"][0], observe="The total reads 7.25 after shrinking"),
                                                                     CONTENT["explorations"][1]])),

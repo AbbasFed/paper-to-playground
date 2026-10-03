@@ -7,7 +7,7 @@ OUTPUT exactly these 7 tags as plain text, in this order, each closed with its o
 <content>one JSON object:
 {"title": short page title,
  "paper": full paper title, "section": e.g. "§3.2.1", "equation": e.g. "Eq. (1)" or the name the excerpt uses; only labels that appear in the excerpt or brief, otherwise "the provided excerpt",
- "formula": the governing equation(s) in the paper's own notation,
+ "formula": the governing equation(s) in the paper's own notation, one equation per line separated by ";" (write each case of a piecewise definition as its own line),
  "intro": 2-4 sentences: the idea in plain words for the stated audience,
  "why": 1-2 sentences: why it matters,
  "symbols": [{"symbol": "d<sub>k</sub>", "meaning": "..."}],
@@ -42,7 +42,7 @@ HELPERS (global H, all pure)
 Math: H.sum(a) H.mean(a) H.dot(a,b) H.matmul(A,B) H.transpose(A) H.softmax(a) H.log2(x) H.clamp(x,lo,hi) H.round(x,d) H.linspace(a,b,n) H.range(n) H.argmax(a) H.fmt(x,d)->string; H.rng(seed) returns a function giving reproducible numbers in [0,1).
 Charts (each returns a complete <svg> string; any may take w,h):
  H.bars({labels, values, title, yLabel, xLabel, highlight: index|[indices], max, digits})
- H.lines({x: numbers or category labels, series:[{name, y}], title, xLabel, yLabel, markers:[{x, label}], points:[{x, y, label}], yMin, yMax})
+ H.lines({x: numbers or category labels, series:[{name, y}], logY: true for values spanning orders of magnitude, title, xLabel, yLabel, markers:[{x, label}], points:[{x, y, label}], yMin, yMax})
  H.heatmap({matrix, rowLabels, colLabels, title, digits, highlight:[[r,c]]})  values printed in cells and shaded
  H.matrixTable(matrix, {title, rowLabels, colLabels, digits, highlight})  H.vectorTable(vec, {title, labels, digits})
  H.flow({title, nodes:[{id, label, sub, x, y, highlight}], edges:[{from, to, label}]})  x,y = box centre in px, sub = second line such as a value
@@ -52,7 +52,7 @@ Colours: 'accent' 'muted' 'fg' 'good' 'bad' or 0-5 for the series palette (they 
 
 RULES
 Fidelity: stay inside the requested focus. Use the paper's notation and implement its equation exactly as the excerpt states it. Whatever is not in the excerpt (toy numbers, sizes, extra assumptions) belongs in simplifications. Never claim or imply that the demo reproduces the paper's experiments or results.
-Teaching: write for the stated audience; define every symbol used in formula, intro and steps. Choose small default inputs that make the effect clearly visible. Each exploration names the exact control and values to change ("set" holds those values so a button can apply them), one specific number or shape to watch and how it changes, and the causal reason taken from the equation. If the brief asks for particular controls, comparisons or checks, include every one of them.
+Teaching: write for the stated audience; define every symbol used in formula, intro and steps. Choose small default inputs that make the effect clearly visible. Each exploration names the exact control and values to change ("set" holds those values so a button can apply them), one specific number or shape to watch and how it changes, and the causal reason taken from the equation. If the brief asks for particular controls, comparisons or checks, include every one of them. When the brief says to guide the learner through two situations ("an easy example and a hard example"), exploration 1 is the first and exploration 2 the second; never reuse the checks as explorations. Choose the default control values as a third, neutral situation, so that both explorations' "set" values differ from the defaults and from each other. Control ranges must reach every case the brief names (if a check needs q ≥ 0.5, the q slider goes past 0.5).
 Iterative mechanisms (an update applied repeatedly: optimiser or gradient steps, recurrences, power iteration, EM): add an integer slider for the number of iterations (min 0 or 1, max at most 100, step 1) and make compute() run exactly that many steps in a bounded for-loop, returning the per-step history so render can plot the trajectory.
 Visual: 3-4 titled panels following the calculation from inputs through intermediate values to the result. At least two panels must be real charts or diagrams (H.bars, H.lines, H.heatmap or H.flow), not only tables; where the equation relates two quantities, plot one against the other with H.lines and mark the current setting. Label every axis, row, column and node, print the key numbers on the picture and highlight what the current settings change.
 Robustness: an automatic checker runs compute and render with every control at its min and max, every option, every size a size slider allows (1 included), and vectors/matrices filled with their min or max (so all zeros can occur). No exceptions and no NaN: guard log(0), 0/0 and empty input (0·log 0 = 0), and pick control ranges that keep the maths defined. Every control must change at least one output. No Math.random, Date, DOM or network access.

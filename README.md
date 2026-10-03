@@ -126,6 +126,8 @@ Each check is logged to the trace with pass / fail / warn and a message.
    readout keys must resolve;
    every decimal number quoted in an exploration's "observe" text must be a value `compute` really produces at the
    settings that exploration describes (the model's prose is otherwise unverified).
+   Numbers in scientific notation are understood. An exploration that merely reloads the default settings is logged
+   as a warning; the page then tells the learner the settings are already loaded.
 7. **Final page** – no remote `src`/`href`/`url()`, no `fetch`/`import`/XHR/`<link>`, every inline script parses,
    size under 1 MB, API key absent.
 

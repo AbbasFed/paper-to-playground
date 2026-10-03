@@ -183,10 +183,23 @@
   /* single numbers get a big tile; every readout also has a row in the table */
   var first = null;
   try { first = compute(PG.params(controls, raw)); } catch (e) { first = null; }
+  /* a readout that merely repeats a control's value is an input, not a result */
+  function isEcho(r) {
+    return controls.some(function (c) {
+      if ((c.type !== 'slider' && c.type !== 'number') || PG.get(first, r.key) !== raw[c.id]) return false;
+      try {
+        var st = JSON.parse(JSON.stringify(raw)); st[c.id] = PG.coerce(c, raw[c.id] !== c.max ? c.max : c.min);
+        return PG.get(compute(PG.params(controls, st)), r.key) === st[c.id];
+      } catch (e) { return false; }
+    });
+  }
+  var numeric = readouts.filter(function (r) { return first && typeof PG.get(first, r.key) === 'number'; });
+  var results = numeric.filter(function (r) { return !isEcho(r); });
+  if (!results.length) results = numeric;
+  var tileSet = results.slice(-4);   /* readouts follow the calculation, so the last ones are the answers */
   var tiles = [];
   readouts.forEach(function (r, i) {
-    var v = first ? PG.get(first, r.key) : undefined;
-    if (typeof v !== 'number' || tiles.length >= 4) return;
+    if (tileSet.indexOf(r) < 0) return;
     var t = el('div', { 'class': 'tile' }), k = el('div', { 'class': 'k' }), val = el('div', { 'class': 'v' });
     k.innerHTML = r.label; t.appendChild(k); t.appendChild(val); $('pg-tiles').appendChild(t);
     tiles.push({ i: i, el: val });
@@ -250,6 +263,20 @@
       t.el.innerHTML = out ? H.esc(H.fmt(PG.get(out, r.key), r.digits)) + (r.unit ? '<small>' + r.unit + '</small>' : '') : '–';
     });
     sweep(out);
+    /* "effect" means a displayed result changes; compute() often echoes its inputs, which must not count */
+    var shown = readouts.filter(function (r) { return numeric.indexOf(r) < 0 || results.indexOf(r) >= 0; });
+    var sig = function (o) { return JSON.stringify(shown.map(function (r) { return PG.get(o, r.key); })); };
+    var outStr = out ? sig(out) : null;
+    controls.forEach(function (c) {
+      var w = widgets[c.id], alts = c.type === 'slider' || c.type === 'number' ? [c.min, c.max] : c.type === 'toggle' ? [!raw[c.id]] :
+        c.type === 'select' ? c.options.map(function (op) { return op.value; }) : null;
+      if (!w || !alts || !outStr) { if (w) w.removeAttribute('data-idle'); return; }
+      var live = alts.some(function (v) {
+        if (String(v) === String(raw[c.id])) return false;
+        try { var st = JSON.parse(JSON.stringify(raw)); st[c.id] = PG.coerce(c, v); return sig(compute(PG.params(controls, st))) !== outStr; } catch (e) { return true; }
+      });
+      if (live) w.removeAttribute('data-idle'); else w.setAttribute('data-idle', '1');
+    });
     tests.forEach(function (t, i) {
       var ok = false;
       try {
@@ -263,7 +290,7 @@
     });
   }
   /* automatic graphs: one scalar result plotted against each numeric control, every point from compute() */
-  var scalars = readouts.filter(function (r) { return first && typeof PG.get(first, r.key) === 'number'; });
+  var scalars = results;
   var sweepable = controls.filter(function (c) { return c.type === 'slider' || c.type === 'number'; }).slice(0, 6);
   function plain(s) {
     return String(s).replace(/<sub>(.*?)<\/sub>/g, '_{$1}').replace(/<sup>(.*?)<\/sup>/g, '^{$1}').replace(/<[^>]+>/g, '')
@@ -301,7 +328,12 @@
     sweepable.forEach(function (c) {
       var cv = curve(c, r);
       if (cv.flat) { flat.push(plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1')); return; }
-      panels.push(H.lines({ x: cv.x, series: [{ name: '', y: cv.y }], title: 'Effect of ' + plain(c.label), xLabel: plain(c.label), yLabel: plain(r.label) + unit,
+      /* log scale when the curve spans orders of magnitude; rounding noise at or below zero is simply not drawn */
+      var fin = cv.y.filter(function (v) { return isFinite(v); }), pos = fin.filter(function (v) { return v > 0; });
+      var top = pos.length ? Math.max.apply(null, pos) : 0;
+      var wide = pos.length > 2 && pos.length >= 0.6 * fin.length && top / Math.min.apply(null, pos) > 1000 &&
+        fin.every(function (v) { return v > -1e-9 * top; });
+      panels.push(H.lines({ logY: wide, x: cv.x, series: [{ name: '', y: cv.y }], title: 'Effect of ' + plain(c.label), xLabel: plain(c.label), yLabel: plain(r.label) + unit,
         points: typeof now === 'number' && isFinite(now) ? [{ x: raw[c.id], y: now, label: H.fmt(now, r.digits) }] : [] }));
     });
     var note = flat.length ? H.note((panels.length ? 'No effect on this result at the current settings: ' : 'None of the sliders changes this result at the current settings: ') + flat.join(', ') + '.') : '';
@@ -313,7 +345,13 @@
     b.addEventListener('click', function () {
       var over = {};
       try { over = JSON.parse(b.getAttribute('data-set')); } catch (e) {}
+      var before = JSON.stringify(raw);
       load(over);
+      /* always answer the click: say what was applied and flash the results */
+      var note = b.parentNode.querySelector('.applied') || b.parentNode.appendChild(el('span', { 'class': 'applied' }));
+      note.textContent = JSON.stringify(raw) === before ? 'These settings are already loaded: read the values in the playground.' : 'Settings applied in the playground.';
+      var stage = document.querySelector('.stage');
+      stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
       $('playground').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });

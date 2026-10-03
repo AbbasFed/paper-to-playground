@@ -272,7 +272,7 @@ def fit_controls(controls, overrides):
             flat = [x for x in flat if num(x)]
             if flat and (min(flat) < c["min"] or max(flat) > c["max"]):
                 lo, hi = min(c["min"], *flat), max(c["max"], *flat)
-                if (hi - lo) <= 20 * (c["max"] - c["min"]):
+                if (hi - lo) <= 3 * (c["max"] - c["min"]):
                     notes.append("%s: range widened from [%s, %s] to [%s, %s] to admit a value used in an exploration/test" % (k, c["min"], c["max"], lo, hi))
                     c["min"], c["max"] = lo, hi
     for c in controls:
@@ -359,7 +359,10 @@ def normalise_content(c):
             exps.append({"title": str(e.get("title") or "").strip(), "change": str(e.get("change") or "").strip(),
                          "observe": str(e.get("observe") or "").strip(), "why": str(e.get("why") or "").strip(),
                          "set": e.get("set") if isinstance(e.get("set"), dict) else {}})
-    return {"title": g("title"), "paper": g("paper", "paper_title"), "section": g("section"), "equation": g("equation"),
+    eq = g("equation")
+    if re.search(r"excerpt|provided|unnumbered|not numbered|^n/?a$|^none$", eq, re.I):
+        eq = ""          # "the provided excerpt" is not the name of an equation
+    return {"title": g("title"), "paper": g("paper", "paper_title"), "section": g("section"), "equation": eq,
             "formula": g("formula"), "intro": g("intro"), "why": g("why", "why_it_matters"), "symbols": syms,
             "steps": _strs(c.get("steps")), "explorations": exps, "limitation": g("limitation"),
             "quotes": _strs(c.get("quotes")), "simplifications": _strs(c.get("simplifications"))}
@@ -541,7 +544,9 @@ def evaluate(tags, excerpt):
     parts["content"] = content
     if "content" in parsed:
         gaps = []
-        for k in ("title", "paper", "section", "equation", "formula", "intro", "why", "limitation"):
+        if not content["section"] and not content["equation"]:
+            gaps.append("needs a section or an equation reference")
+        for k in ("title", "paper", "formula", "intro", "why", "limitation"):
             if not content[k]:
                 gaps.append("%s is empty" % k)
         if len(content["symbols"]) < 2:
@@ -596,6 +601,15 @@ def evaluate(tags, excerpt):
             probs += ["exploration %d set: %s" % (i + 1, m) for m in override_problems(controls, e["set"])]
             if not e["set"]:
                 probs.append("exploration %d has no \"set\" values for its button" % (i + 1))
+        # a button that reloads the defaults, or two buttons that do the same thing, teach nothing
+        defaults = {c["id"]: c["default"] for c in controls}
+        applied = [dict(defaults, **{k: v for k, v in e["set"].items() if k in defaults}) for e in content["explorations"]]
+        same = [str(i + 1) for i, st in enumerate(applied) if content["explorations"][i]["set"] and st == defaults]
+        if same:   # a warning, not a repair: the page tells the learner these are the starting settings
+            checks.append(check("explorations_at_defaults", False, "exploration %s uses the default control values; its button reloads the starting settings"
+                                % " and ".join(same), ["content", "controls"], "soft"))
+        if len(applied) == 2 and applied[0] == applied[1] and applied[0] != defaults:
+            probs.append("explorations 1 and 2 apply identical settings; they must show two different situations")
         checks.append(check("explorations_apply", not probs, "; ".join(probs) if probs else "both explorations can be applied to the controls", ["content", "controls"]))
     ids = {c["id"] for c in controls}
     for e in content["explorations"]:

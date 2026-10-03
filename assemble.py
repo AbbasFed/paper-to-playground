@@ -5,7 +5,7 @@ import json
 import os
 import re
 
-from checks import inline_html, read_template
+from checks import UNGROUNDED_LABEL, inline_html, read_template
 
 ICONS = {   # small inline icons for the hero stat cards
     "controls": '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h3M11 12h9M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
@@ -55,11 +55,19 @@ def _p(text, cls=""):
 def build_html(parts, case):
     c = parts["content"]
     esc = html.escape
+    # a label the checker could not trace to the excerpt is not shown as if it were a section or equation number
+    c = dict(c, section="" if c["section"] == UNGROUNDED_LABEL else c["section"],
+             equation="" if c["equation"] == UNGROUNDED_LABEL else c["equation"])
     if c["equation"].strip().lower() == c["section"].strip().lower():
         c = dict(c, equation="")
-    formula = re.sub(r";\s+|\s*\n\s*", "<br>", inline_html(c["formula"]).strip())
+    formula = re.sub(r"(?<!&gt)(?<!&lt)(?<!&amp)(?<!&#\d\d)(?<!&#\d\d\d)(?<!&#\d\d\d\d);\s+|\s*\n\s*", "<br>", inline_html(c["formula"]).strip())
     formula = re.sub(r"(\(\d{1,2}\))\s+(?=\S)", r"\1<br>", formula)   # one numbered equation per line
     formula = re.sub(r"<br>\s*[|,;]\s*", "<br>", formula)             # drop a separator left at the start of a line
+    formula = re.sub(r"\.\s+(?=[^.<]{1,40}=)", "<br>", formula)         # "A = b. C = d" -> two lines
+    eqs = [e.strip() for e in formula.split("<br>") if e.strip()]
+    longest = max([len(re.sub(r"<[^>]+>", "", e)) for e in eqs] or [0])
+    formula = "".join('<span class="eq">%s</span>' % e for e in eqs)
+    fcls = "formula long" if longest > 34 else "formula"
     cite = " · ".join(esc(x) for x in (c["paper"], c["section"], c["equation"]) if x)
     title = c["title"] or c["paper"] or "Interactive explainer"
 
@@ -73,7 +81,7 @@ def build_html(parts, case):
     n_checks = len(parts["tests"])
     hero_card = '<div class="hero-card"><span class="tag paper">From the paper%s</span>%s<p class="muted small" style="margin:10px 0 0;text-align:center">%s</p>%s</div>' % (
         " · " + esc(c["equation"] or c["section"]) if (c["equation"] or c["section"]) else "",
-        '<div class="formula">%s</div>' % formula if c["formula"] else "", cite or "Source paper",
+        '<div class="%s">%s</div>' % (fcls, formula) if c["formula"] else "", cite or "Source paper",
         '<div class="badge"><b>%d</b> live checks<br>on the calculation</div>' % n_checks if n_checks else "")
     stats = '<div class="stats">%s</div>' % "".join(
         '<div class="stat"><span class="ico">%s</span><div><b>%d</b><span>%s</span></div></div>' % (ICONS[k], n, label)
@@ -102,7 +110,7 @@ def build_html(parts, case):
         src += '<p class="muted small mono">%s</p>' % esc(case["source_url"])
     grounding = src
     grounding += '<div class="from-paper"><span class="tag paper">From the paper</span>%s%s</div>' % (
-        '<div class="formula">%s</div>' % formula if c["formula"] else "",
+        '<div class="%s">%s</div>' % (fcls, formula) if c["formula"] else "",
         quotes or '<p class="muted small">No verbatim quote could be verified against the supplied text.</p>')
     grounding += '<div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain">%s</ul><p style="margin-top:8px"><b>%s</b></p></div>' % (
         "".join("<li>%s</li>" % inline_html(s) for s in c["simplifications"]) or "<li>The numbers in the playground are small made-up inputs.</li>", DISCLAIMER)

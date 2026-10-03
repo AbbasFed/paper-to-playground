@@ -148,18 +148,29 @@ function __runChecks(spec) {
   /* numbers quoted in an exploration's "observe" text must be numbers the calculation really
      produces at the settings that exploration describes (model prose is otherwise unchecked) */
   R.explorationNumbers = [];
-  var NUM = /[−-]?\d+\.\d+/g;
-  function toNum(s) { return Number(String(s).replace('−', '-')); }
+  /* a decimal, optionally in scientific notation: 1.69e-5, 1.69 x 10^-5, 1.69·10^{−5} */
+  var NUM = /[\u2212-]?\d+\.\d+(?:(?:[eE]|\s*[\u00d7x\u00b7*]\s*10\s*\^?\s*\{?\s*)([\u2212-]?\d+)\}?)?/g;
+  var SUPER = { '\u207b': '-', '\u2070': '0', '\u00b9': '1', '\u00b2': '2', '\u00b3': '3', '\u2074': '4', '\u2075': '5', '\u2076': '6', '\u2077': '7', '\u2078': '8', '\u2079': '9' };
+  function text(s) {
+    return String(s || '').replace(/<sup>\s*([^<]*)<\/sup>/g, '^$1').replace(/<[^>]+>/g, ' ')
+      .replace(/[\u207b\u2070\u00b9\u00b2\u00b3\u2074-\u2079]+/g, function (m) { return '^' + m.split('').map(function (ch) { return SUPER[ch]; }).join(''); });
+  }
+  function toNum(s) { return Number(String(s).replace(/\u2212/g, '-')); }
+  function parse(tok) {   /* -> {x: magnitude, tol: half a unit in the last quoted digit} */
+    var m = /^([\u2212-]?\d+\.(\d+))(?:(?:[eE]|\s*[\u00d7x\u00b7*]\s*10\s*\^?\s*\{?\s*)([\u2212-]?\d+)\}?)?$/.exec(tok);
+    var e = m && m[3] !== undefined ? toNum(m[3]) : 0, mant = m ? toNum(m[1]) : toNum(tok), d = m ? m[2].length : 0;
+    return { x: Math.abs(mant) * Math.pow(10, e), tol: 0.6 * Math.pow(10, e - d) };
+  }
   function gather(v, acc, depth) {
     if (typeof v === 'number' && isFinite(v)) acc.push(Math.abs(v));
     else if (v && typeof v === 'object' && depth < 4) Object.keys(v).forEach(function (k) { gather(v[k], acc, depth + 1); });
   }
   (spec.explorations || []).forEach(function (ex, idx) {
-    var quoted = String(ex.observe || '').replace(/<[^>]+>/g, ' ').match(NUM) || [];
+    var quoted = text(ex.observe).match(NUM) || [];
     if (!quoted.length) return;
     var base = PG.merge(controls, def, ex.set || {}).raw, states = [base, def], seen = [];
     /* "set SNR to 20, then to -10": also try each number named in the change text on each numeric control */
-    var named = (String(ex.change || '').replace(/<[^>]+>/g, ' ').match(/[−-]?\d+(?:\.\d+)?/g) || []).map(toNum);
+    var named = (text(ex.change).match(/[\u2212-]?\d+(?:\.\d+)?/g) || []).map(toNum);
     controls.forEach(function (c) {
       if (c.type !== 'slider' && c.type !== 'number') return;
       named.forEach(function (v) {
@@ -186,7 +197,7 @@ function __runChecks(spec) {
     });
     var missing = [];
     quoted.forEach(function (tok) {
-      var x = Math.abs(toNum(tok)), d = (tok.split('.')[1] || '').length, tol = 0.6 * Math.pow(10, -d);
+      var q = parse(tok), x = q.x, tol = q.tol;
       var ok = seen.some(function (v) { return Math.abs(v - x) <= tol || Math.abs(v * 100 - x) <= tol; });   /* also as a percentage */
       if (!ok && missing.indexOf(tok) < 0) missing.push(tok);
     });
