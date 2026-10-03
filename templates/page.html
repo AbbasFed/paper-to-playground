@@ -184,10 +184,13 @@
   /* single numbers get a big tile; every readout also has a row in the table */
   var first = null;
   try { first = compute(PG.params(controls, raw)); } catch (e) { first = null; }
-  /* a readout that merely repeats a control's value is an input, not a result */
+  /* a readout that merely repeats a control's value is an input, not a result. It must also carry the control's
+     name: a genuine result can equal an input by design (a decrypted message equals the message). */
+  function plainKey(s) { return String(s).toLowerCase().replace(/[^a-z0-9]/g, ''); }
   function isEcho(r) {
     return controls.some(function (c) {
       if ((c.type !== 'slider' && c.type !== 'number') || PG.get(first, r.key) !== raw[c.id]) return false;
+      if (plainKey(r.key) !== plainKey(c.id)) return false;
       try {
         var st = JSON.parse(JSON.stringify(raw)); st[c.id] = PG.coerce(c, raw[c.id] !== c.max ? c.max : c.min);
         return PG.get(compute(PG.params(controls, st)), r.key) === st[c.id];
@@ -302,19 +305,32 @@
   }
   scalars.forEach(function (r, i) { $('pg-sweep-out').appendChild(el('option', { value: String(i) }, plain(r.label).replace(/[_^]\{([^}]*)\}/g, '$1'))); });
   function curve(c, r, n) {
-    var steps = Math.round((c.max - c.min) / c.step), xs = [], ys = [];
-    if (!n) n = steps >= 1 && steps <= 40 ? steps + 1 : 41;
+    /* sample on the slider's own steps: every step when there are up to 400, otherwise 241 values spread over
+       the range and snapped to the step grid. A fixed stride is avoided on purpose: sampling every 2nd value
+       would, for example, only ever try even numbers and hide whatever depends on parity. */
+    var steps = Math.max(1, Math.round((c.max - c.min) / c.step)), xs = [], ys = [], dense = !n;
+    if (dense) n = steps <= 400 ? steps + 1 : 241;
     for (var i = 0; i < n; i++) {
-      var x = PG.coerce(c, H.round(c.min + (c.max - c.min) * i / (n - 1), 8)), y = NaN;
+      var pos = dense ? Math.round(i * steps / (n - 1)) * c.step : (c.max - c.min) * i / (n - 1);
+      var x = PG.coerce(c, H.round(c.min + pos, 8)), y = NaN;
       try {
         var st = JSON.parse(JSON.stringify(raw)); st[c.id] = x;
-        var v = PG.get(compute(PG.params(controls, st)), r.key);
-        if (typeof v === 'number' && isFinite(v)) y = v;
+        var o2 = compute(PG.params(controls, st)), v = PG.get(o2, r.key);
+        /* a setting the page itself declares invalid has no meaningful value to plot */
+        if (typeof v === 'number' && isFinite(v) && !(typeof o2.warning === 'string' && o2.warning.trim())) y = v;
       } catch (e) { y = NaN; }
       xs.push(x); ys.push(y);
     }
     var fin = ys.filter(function (v) { return isFinite(v); }), lo = Math.min.apply(null, fin), hi = Math.max.apply(null, fin);
-    return { x: xs, y: ys, flat: !fin.length || hi - lo <= 1e-9 * Math.max(1, Math.abs(hi), Math.abs(lo)) };
+    /* a curve that reverses direction at a third or more of its points has no trend a line could show
+       (for example a ciphertext against its message): joining those points would suggest continuity that is not there */
+    var turns = 0, moves = 0, last = 0;
+    for (var j = 1; j < fin.length; j++) {   /* over the valid points only, so gaps left by invalid settings do not hide the pattern */
+      var dlt = fin[j] - fin[j - 1];
+      if (dlt === 0) continue;
+      moves++; if (last && (dlt > 0) !== (last > 0)) turns++; last = dlt;
+    }
+    return { x: xs, y: ys, flat: !fin.length || hi - lo <= 1e-9 * Math.max(1, Math.abs(hi), Math.abs(lo)), rough: moves >= 12 && turns > 0.33 * moves };
   }
   /* open on the result that responds to the most controls (ties: the later one, as readouts follow the calculation) */
   var bestIdx = scalars.length - 1, bestN = -1;
@@ -328,10 +344,11 @@
     var wrap = $('pg-sweep-wrap');
     if (!out || !scalars.length || !sweepable.length) { wrap.hidden = true; return; }
     var r = scalars[Math.max(0, $('pg-sweep-out').selectedIndex)], now = PG.get(out, r.key), unit = r.unit ? ' (' + plain(r.unit) + ')' : '';
-    var panels = [], flat = [];
+    var panels = [], flat = [], rough = [];
     sweepable.forEach(function (c) {
       var cv = curve(c, r);
       if (cv.flat) { flat.push(plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1')); return; }
+      if (cv.rough) { rough.push(plain(c.label).replace(/[_^]\{([^}]*)\}/g, '$1')); return; }
       /* log scale when the curve spans orders of magnitude; rounding noise at or below zero is simply not drawn */
       var fin = cv.y.filter(function (v) { return isFinite(v); }), pos = fin.filter(function (v) { return v > 0; });
       var top = pos.length ? Math.max.apply(null, pos) : 0;
@@ -341,6 +358,7 @@
         points: typeof now === 'number' && isFinite(now) ? [{ x: raw[c.id], y: now, label: H.fmt(now, r.digits) }] : [] }));
     });
     var note = flat.length ? H.note((panels.length ? 'No effect on this result at the current settings: ' : 'None of the sliders changes this result at the current settings: ') + flat.join(', ') + '.') : '';
+    if (rough.length) note += H.note('This result jumps irregularly as you change ' + rough.join(', ') + ', so there is no trend to draw: move the slider and watch the value instead.');
     try { $('pg-sweep').innerHTML = (panels.length ? H.grid(2, panels) : '') + note; wrap.hidden = false; } catch (e2) { wrap.hidden = true; }
   }
 
