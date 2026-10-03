@@ -48,6 +48,18 @@ def json_for_script(obj):
     return json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
+def describe_override(controls, over):
+    """'set scaling off, T = 5' for an exploration's second step, in the words of the control labels."""
+    by, out = {c["id"]: c for c in controls}, []
+    for k, v in over.items():
+        name = html.unescape(re.sub(r"<[^>]+>", "", by[k]["label"])) if k in by else k
+        if isinstance(v, bool):
+            out.append("%s %s" % (name, "on" if v else "off"))
+        else:
+            out.append("%s = %s" % (name, json.dumps(v) if isinstance(v, list) else v))
+    return ("set " + ", ".join(out)) if out else ""
+
+
 def _p(text, cls=""):
     return '<p%s>%s</p>' % (' class="%s"' % cls if cls else "", inline_html(text)) if text else ""
 
@@ -96,10 +108,14 @@ def build_html(parts, case):
     steps = ('<ol class="steps">%s</ol>' % "".join("<li>%s</li>" % inline_html(s) for s in c["steps"]) if c["steps"] else
              '<p class="muted">No step-by-step breakdown was generated for this page; the governing equation is under "The idea".</p>')
 
-    cards = []
+    cards, ex_data = [], []
     for i, e in enumerate(c["explorations"]):
-        btn = ('<p style="margin:0"><button type="button" class="try" data-set="%s">Try it in the playground &#9654;</button></p>'
-               % esc(json.dumps(e["set"]), quote=True)) if e.get("set") else ""
+        then = describe_override(parts["controls"], e.get("then") or {})
+        ex_data.append({"title": inline_html(e["title"]) if e.get("title") else "Try this", "observe": inline_html(e["observe"]),
+                        "set": e.get("set") or {}, "then": e.get("then") or {}, "thenText": then, "verified": bool(e.get("verified"))})
+        btn = '<p style="margin:0"><button type="button" class="try" data-ex="%d" data-state="a">%s &#9654;</button>%s</p>' % (
+            i, "1 · Set it up" if then else "Try it in the playground",
+            ' <button type="button" class="try ghost" data-ex="%d" data-state="b">2 · Then %s &#9654;</button>' % (i, esc(then)) if then else "")
         cards.append('<div class="card"><h3><small>Exploration %d</small>%s</h3><dl><dt>Change</dt><dd>%s</dd><dt>Observe</dt><dd>%s</dd><dt>Why</dt><dd>%s</dd></dl>%s</div>' % (
             i + 1, inline_html(e["title"]) if e.get("title") else "Try this", inline_html(e["change"]), inline_html(e["observe"]), inline_html(e["why"]), btn))
     explorations = '<div class="cards">%s</div>' % "".join(cards)
@@ -115,7 +131,7 @@ def build_html(parts, case):
     grounding += '<div class="from-ours"><span class="tag ours">Our example / simplification</span><ul class="plain">%s</ul><p style="margin-top:8px"><b>%s</b></p></div>' % (
         "".join("<li>%s</li>" % inline_html(s) for s in c["simplifications"]) or "<li>The numbers in the playground are small made-up inputs.</li>", DISCLAIMER)
 
-    data = {"controls": parts["controls"], "readouts": parts["readouts"], "tests": parts["tests"]}
+    data = {"controls": parts["controls"], "readouts": parts["readouts"], "tests": parts["tests"], "explorations": ex_data}
     fills = {
         "TITLE_TEXT": esc(re.sub(r"<[^>]+>", "", title)),
         "STYLE": read_template("style.css"),

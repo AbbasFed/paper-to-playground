@@ -6,17 +6,17 @@ OUTPUT exactly these 7 tags as plain text, in this order, each closed with its o
 
 <content>one JSON object:
 {"title": short page title,
- "paper": full paper title, "section": e.g. "§3.2.1", "equation": e.g. "Eq. (1)" or the name the excerpt uses; only labels that appear in the excerpt or brief, otherwise "the provided excerpt",
+ "paper": full paper title, "section": e.g. "§4.1", "equation": e.g. "Eq. (3)" or the name the excerpt uses; only labels that appear in the excerpt or brief, otherwise "the provided excerpt",
  "formula": the governing equation(s) in the paper's own notation, one equation per line separated by ";" (write each case of a piecewise definition as its own line),
  "intro": 2-4 sentences: the idea in plain words for the stated audience,
  "why": 1-2 sentences: why it matters,
- "symbols": [{"symbol": "d<sub>k</sub>", "meaning": "..."}],
+ "symbols": [{"symbol": "x<sub>i</sub>", "meaning": "..."}],
  "steps": [3-6 short strings: the mechanism in order],
- "explorations": [exactly 2 of {"title", "change", "observe", "why", "set": {controlId: value}}],
+ "explorations": [exactly 2 of {"title", "change", "observe", "why", "set": {controlId: value} (the set-up), "then": {controlId: value} (optional second step on top of set, for a before/after comparison), "expect": JS boolean over out (after set) and out2 (after then; equals out without then) that is true exactly when the observe claim holds, e.g. "out2.y < out.y/2"; index outputs in exactly the shape compute returns them}],
  "limitation": one limitation, assumption or common misunderstanding,
  "quotes": [1-3 quotes, each under 25 words, copied character-for-character from the excerpt],
  "simplifications": [2-4 strings: what the demo invents or simplifies]}
-Text may use only <b> <i> <sub> <sup> <code> and Unicode math (√ Σ · ≤ α β). Write subscripts as d<sub>k</sub>, never d_k. No LaTeX, no $.</content>
+Text may use only <b> <i> <sub> <sup> <code> and Unicode math (√ Σ · ≤ α β). Write subscripts as x<sub>i</sub>, never x_i. No LaTeX, no $.</content>
 
 <controls>JSON array of 2-5 controls:
  {"type":"slider","id","label","min","max","step","default"}
@@ -24,7 +24,7 @@ Text may use only <b> <i> <sub> <sup> <code> and Unicode math (√ Σ · ≤ α 
  {"type":"select","id","label","options":["a","b"],"default":"a"}
  {"type":"vector","id","label","default":[..],"min","max","step"}  optional "lengthFrom":"<slider id>": an integer size slider (min 1) picks how many entries are shown and passed; default has as many entries as that slider's max
  {"type":"matrix","id","label","default":[[..],[..]],"min","max","step"}  optional "rowsFrom"/"colsFrom":"<slider id>": integer size sliders (min 1) pick how many rows/columns are shown and passed; default sized to their max
-ids are JS identifiers. Vectors up to 6 entries, matrices up to 4x4. Sizes are fixed unless tied to a size slider: wherever you override a vector or matrix ("set", "params") give it in exactly its default shape (a 2x3 default needs 2 rows of 3 everywhere; [[1,1]] would be rejected; a size-linked one may be smaller), and keep every value inside the control range.</controls>
+ids are JS identifiers. Vectors up to 6 entries, matrices up to 4x4. Sizes are fixed unless tied to a size slider: wherever you override a vector or matrix ("set", "then", "params") give it in exactly its default shape (a 2x3 default needs 2 rows of 3 everywhere; [[1,1]] would be rejected; a size-linked one may be smaller), and keep every value inside the control range.</controls>
 
 <compute>function compute(p) { ... return {...}; }
 p = {controlId: value} (number | boolean | string | number[] | number[][]). Pure and deterministic. Return the final result AND every intermediate value under descriptive keys (numbers, arrays, matrices only).</compute>
@@ -32,11 +32,11 @@ p = {controlId: value} (number | boolean | string | number[] | number[][]). Pure
 <render>function render(p, out) { ... return "<svg>..."; }
 Pure. Returns an SVG/HTML string built with H. Take every number from out; never recompute or hardcode values.</render>
 
-<readouts>JSON array of 4-8 {"key": path into out such as "H" or "weights", "label", "digits": 3, "unit": ""}, in the order the calculation flows.</readouts>
+<readouts>JSON array of 4-8 {"key": path into out such as "y" or "p", "label": names exactly the quantity stored under key, "digits": 3, "unit": ""}, in the order the calculation flows.</readouts>
 
 <tests>JSON array of 3-6 {"name", "params": {controlId: value}, "expect": "JS boolean expression over out, p, H"}.
-"params": {} makes an invariant that must hold for EVERY control setting (shown live on the page), e.g. "Math.abs(H.sum(out.weights)-1)<1e-9".
-With params it is a known case whose answer you have worked out by hand from the equation, e.g. "Math.abs(out.H-2)<1e-9". params may only name existing controls, each value in exactly the default shape and range. Use tolerances.</tests>
+"params": {} makes an invariant that must hold for EVERY control setting (shown live on the page), e.g. "Math.abs(H.sum(out.p)-1)<1e-9".
+With params it is a known case whose answer you have worked out by hand from the equation, e.g. "Math.abs(out.y-0.5)<1e-9". params may only name existing controls, each value in exactly the default shape and range. Use tolerances.</tests>
 
 HELPERS (global H, all pure)
 Math: H.sum(a) H.mean(a) H.dot(a,b) H.matmul(A,B) H.transpose(A) H.softmax(a) H.log2(x) H.clamp(x,lo,hi) H.round(x,d) H.linspace(a,b,n) H.range(n) H.argmax(a) H.fmt(x,d)->string; H.rng(seed) returns a function giving reproducible numbers in [0,1).
@@ -52,7 +52,9 @@ Colours: 'accent' 'muted' 'fg' 'good' 'bad' or 0-5 for the series palette (they 
 
 RULES
 Fidelity: stay inside the requested focus. Use the paper's notation and implement its equation exactly as the excerpt states it. Whatever is not in the excerpt (toy numbers, sizes, extra assumptions) belongs in simplifications. Never claim or imply that the demo reproduces the paper's experiments or results.
-Teaching: write for the stated audience; define every symbol used in formula, intro and steps. Choose small default inputs that make the effect clearly visible. Each exploration names the exact control and values to change ("set" holds those values so a button can apply them), one specific number or shape to watch and how it changes, and the causal reason taken from the equation. If the brief asks for particular controls, comparisons or checks, include every one of them. When the brief says to guide the learner through two situations ("an easy example and a hard example"), exploration 1 is the first and exploration 2 the second; never reuse the checks as explorations. Choose the default control values as a third, neutral situation, so that both explorations' "set" values differ from the defaults and from each other. Control ranges must reach every case the brief names (if a check needs q ≥ 0.5, the q slider goes past 0.5).
+Teaching: write for the stated audience; define every symbol used in formula, intro and steps. Choose small default inputs that make the effect clearly visible. Each exploration names the exact control and values to change ("set" holds those values so a button can apply them; a comparison puts its second step in "then"), one specific number or shape to watch and how it changes, and the causal reason taken from the equation; "expect" lets the checker confirm the claim, so claim only what the numbers show. If the brief asks for particular controls, comparisons or checks, include every one of them. When the brief says to guide the learner through two situations ("an easy example and a hard example"), exploration 1 is the first and exploration 2 the second; never reuse the checks as explorations. Choose the default control values as a third, neutral situation, so that both explorations' "set" values differ from the defaults and from each other. Control ranges must reach every case the brief names (if a check needs q ≥ 0.5, the q slider goes past 0.5).
 Iterative mechanisms (an update applied repeatedly: optimiser or gradient steps, recurrences, power iteration, EM): add an integer slider for the number of iterations (min 0 or 1, max at most 100, step 1) and make compute() run exactly that many steps in a bounded for-loop, returning the per-step history so render can plot the trajectory.
-Visual: 3-4 titled panels following the calculation from inputs through intermediate values to the result. At least two panels must be real charts or diagrams (H.bars, H.lines, H.heatmap or H.flow), not only tables; where the equation relates two quantities, plot one against the other with H.lines and mark the current setting. Label every axis, row, column and node, print the key numbers on the picture and highlight what the current settings change.
-Robustness: an automatic checker runs compute and render with every control at its min and max, every option, every size a size slider allows (1 included), and vectors/matrices filled with their min or max (so all zeros can occur). No exceptions and no NaN: guard log(0), 0/0 and empty input (0·log 0 = 0), and pick control ranges that keep the maths defined. Every control must change at least one output. No Math.random, Date, DOM or network access.
+Visual: 3-4 titled panels following the calculation from inputs through intermediate values to the result. At least two panels must be real charts or diagrams (H.bars, H.lines, H.heatmap or H.flow), not only tables; where the equation relates two quantities, plot one against the other with H.lines and mark the current setting. Label every axis, row, column and node, print the key numbers on the picture and highlight what the current settings change. Probabilities and weights use a fixed 0-1 axis (H.bars max:1; H.lines yMin:0, yMax:1); labels computed from the data must handle ties.
+Robustness: an automatic checker runs compute and render with every control at its min and max, every option, every size a size slider allows (1 included), and vectors/matrices filled with their min or max (so all zeros can occur). No exceptions and no NaN: guard log(0), 0/0 and empty input (0·log 0 = 0), and pick control ranges that keep the maths defined. Every control must change at least one output or the visual. No Math.random, Date, DOM or network access.
+Correctness: bits mean log2; 0·log 0 = 0; normalise along the axis the paper states (softmax is per row); check transposes and which dimension a scale factor uses; angles in radians; probabilities as fractions, not percentages.
+Distributions: an input that must be a probability distribution is entered as non-negative weights; compute normalises them and returns both the raw weights and the normalised probabilities.

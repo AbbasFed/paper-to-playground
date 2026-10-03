@@ -98,6 +98,30 @@ def log_checks(trace, stage, results, round_no):
                 passed=sum(1 for c in results if c["ok"]), hard_failures=len(hard), warnings=sum(1 for c in results if not c["ok"]) - len(hard))
 
 
+RULE_TAGS = {"Fidelity": ("content",), "Teaching": ("content",), "Iterative": ("compute", "controls"), "Visual": ("render",),
+             "Robustness": ("compute", "controls", "render"), "Correctness": ("compute", "tests"), "Distributions": ("compute", "controls")}
+
+
+def repair_system(context):
+    """A short system prompt for a repair: the role, the output format and only the parts of the full contract
+    that concern the tags being sent back and forth. Resending the whole contract would cost ~1.8k tokens."""
+    full = read_prompt("system.txt")
+    try:
+        role = full.split("\n\n", 1)[0]
+        specs = [re.search(r"(?ms)^<%s>.*?</%s>$" % (t, t), full).group(0) for t in C.TAGS if t in context and t != "plan"]
+        helpers = re.search(r"(?ms)^HELPERS\b.*?(?=^RULES\b)", full).group(0).strip()
+        rules = [line for line in re.search(r"(?ms)^RULES\b.*", full).group(0).splitlines()[1:]
+                 if line.strip() and any(t in context for t in RULE_TAGS.get(line.split()[0].rstrip(":"), ()))]
+    except AttributeError:      # the contract was reformatted: fall back to sending all of it
+        return full
+    parts = [role, "Each tag is plain text closed with its own name, nothing outside tags, no markdown fences."] + specs
+    if any(t in context for t in ("compute", "render", "tests")):
+        parts.append(helpers)
+    if rules:
+        parts.append("RULES\n" + "\n".join(rules))
+    return "\n\n".join(parts)
+
+
 def repair_message(fields, ex_key, excerpt, tags, results):
     failed = [c for c in results if not c["ok"]]
     hard = [c for c in failed if c["severity"] == "hard"]
@@ -107,18 +131,35 @@ def repair_message(fields, ex_key, excerpt, tags, results):
     context = list(involved)
     if any(t in involved for t in ("compute", "render", "tests", "readouts")):
         context += [t for t in ("controls", "compute") if t not in context]
+    if any(c["name"].startswith("exploration") for c in hard) and "controls" not in context:
+        context.append("controls")      # set/then values must name real controls within their ranges
     brief = "\n".join("%s: %s" % (k, v.strip()[:700]) for k, v in fields.items() if k != ex_key)
     if excerpt and any(c["name"] == "quotes_grounded" for c in hard):
         brief += "\n\nEXCERPT (the only text you may quote):\n<<<\n%s\n>>>" % excerpt.strip()
+    if "content" not in context and any(t in context for t in ("compute", "tests")):
+        # a maths repair must still follow the paper: give it the equation the page cites (~50 tokens, not the excerpt)
+        try:
+            c = C.loads_tolerant(tags.get("content", ""))
+            eq = "%s (%s)" % (c.get("formula", ""), ", ".join(str(c[k]) for k in ("section", "equation") if c.get(k)))
+            brief += "\n\nGOVERNING EQUATION, as the excerpt states it: " + eq.strip()
+        except (ValueError, AttributeError):
+            pass
     body = "\n".join("<%s>\n%s\n</%s>" % (t, tags[t], t) for t in C.TAGS if t in context and tags.get(t)) or "(none of the required tags were found)"
     msg = (read_prompt("repair.txt").replace("{{BRIEF}}", brief)
-           .replace("{{FAILURES}}", "\n".join("- [%s] %s" % (c["name"], c["message"][:500]) for c in hard + [c for c in failed if c["severity"] != "hard"]))
+           .replace("{{FAILURES}}", "\n".join("- [%s] %s" % (c["name"], c["message"][:500])
+                                             for c in hard + [c for c in failed if c["severity"] != "hard" and set(c["tags"]) & set(context)]))
            .replace("{{TAGS}}", body))
-    return msg, involved
+    return msg, involved, context
+
+
+STRUCTURAL = ("tags_present", "json_", "content_complete", "controls_valid", "js_load_", "compute_defaults", "render_defaults")
 
 
 def score(results):
-    return (1 if C.usable(results) else 0, -len(C.hard_failures(results)))
+    """Candidates are compared on: usable page, then hard failures, where a structural one (missing tag,
+    broken JSON, code that does not load) weighs far more than, say, one false known-case test."""
+    hard = C.hard_failures(results)
+    return (1 if C.usable(results) else 0, -sum(10 if c["name"].startswith(STRUCTURAL) else 1 for c in hard))
 
 
 def run(args, trace, key, budget):
@@ -192,10 +233,10 @@ def run(args, trace, key, budget):
         if why:
             trace.event("repair", "skip", "budget", reason=why, round=rnd)
             break
-        msg, involved = repair_message(fields, ex_key, excerpt, best[1], best[3])
+        msg, involved, context = repair_message(fields, ex_key, excerpt, best[1], best[3])
         trace.event("repair", "revision", "requested", round=rnd, tags=involved,
                     reasons=[c["name"] + ": " + c["message"][:200] for c in C.hard_failures(best[3])])
-        resp = llm.chat(args.model, [{"role": "system", "content": system}, {"role": "user", "content": msg}],
+        resp = llm.chat(args.model, [{"role": "system", "content": repair_system(context)}, {"role": "user", "content": msg}],
                         REPAIR_MAX_TOKENS, budget, trace, "repair", reasoning=reasoning, max_attempts=2, **opts)
         if resp is None:
             break
@@ -203,6 +244,12 @@ def run(args, trace, key, budget):
         if args.debug:
             write(os.path.join(args.output, "debug_repair_%d.txt" % rnd), resp["text"])
         new = {t: v for t, v in C.parse_tags(resp["text"]).items() if t != "plan"}
+        for t in [t for t in new if t in C.JSON_TAGS and best[1].get(t)]:
+            try:
+                C.loads_tolerant(new[t])
+            except ValueError:      # never trade a tag that parsed for one that does not
+                trace.event("repair", "merge", "tag_kept", round=rnd, tag=t, reason="the repaired <%s> is not valid JSON; the previous one is kept" % t)
+                del new[t]
         if not new:
             trace.event("repair", "merge", "failed", round=rnd, error="repair reply contained no tags")
             continue
@@ -231,9 +278,11 @@ def run(args, trace, key, budget):
     if any(c["name"] == "page_no_secret" and not c["ok"] for c in final):
         html = html.replace(key, "")
     write(out_html, html)
-    ok = C.usable(results)
+    # the written file itself must pass: scripts that do not parse or a remote resource mean the page is not working
+    broken = [c["name"] for c in final if not c["ok"] and c["name"] != "page_no_secret"]
+    ok = C.usable(results) and not broken
     trace.event("assemble", "write_page", "ok" if ok else "degraded", path="index.html", bytes=len(html.encode("utf-8")),
-                unresolved=[c["name"] for c in C.hard_failures(results)])
+                unresolved=[c["name"] for c in C.hard_failures(results)] + broken)
     return (0 if ok else 1), results
 
 

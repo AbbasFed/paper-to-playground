@@ -223,3 +223,24 @@ footer p { margin: 0; opacity: 0.92; flex: 1; min-width: 240px; }
   .stat { min-width: 0; } .stat span { font-size: 0.82rem; }
   .formula { font-size: 1.12rem; }
 }
+
+/* exact-value boxes, input notes, pinned comparison, exploration banner */
+.ctl input.sl-num { flex: none; width: 5.2em; }
+.ctl-note { margin-top: 6px; font-size: 0.8rem; color: var(--bad); line-height: 1.35; }
+#pg-pin { width: 100%; margin-top: 8px; }
+#pg-pin[aria-pressed=true] { background: var(--soft); }
+.delta { display: block; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+button.try.ghost { color: var(--primary); background: #fff; margin-left: 6px; }
+button.try.ghost:hover { background: var(--soft); }
+.xb { border: 1.5px solid var(--primary); border-left-width: 6px; border-radius: 10px; background: var(--soft-2); padding: 14px 16px; margin: 0 0 16px; }
+.xb p { margin: 6px 0; }
+.xb-top { display: flex; align-items: center; gap: 10px; }
+.xb-top b { flex: 1; }
+.xb-k { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--primary); }
+.xb-x { border: 0; background: transparent; font-size: 1.2rem; line-height: 1; padding: 2px 8px; }
+.xb-states { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.xb-states button[aria-pressed=true] { color: #fff; background: var(--primary); }
+.xb-cmp { width: 100%; margin-top: 6px; font-size: 0.9rem; }
+.xb-cmp th, .xb-cmp td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
+.xb-cmp td.val, .xb-cmp th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.xb-ok { color: var(--good); font-weight: 600; font-size: 0.9rem; }

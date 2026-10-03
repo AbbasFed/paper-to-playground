@@ -9,8 +9,10 @@ CONTENT = {
     "symbols": [{"symbol": "p", "meaning": "weights"}, {"symbol": "M", "meaning": "a matrix"}],
     "steps": ["Pick the sizes.", "Sum the entries in use."],
     "explorations": [
-        {"title": "Shrink", "change": "Set n to 1 and r to 1", "observe": "Only one entry remains", "why": "Size sliders cut the inputs", "set": {"n": 1, "r": 1}},
-        {"title": "Grow", "change": "Set n to 5", "observe": "Five bars appear", "why": "More entries are passed on", "set": {"n": 5}}],
+        {"title": "Shrink", "change": "Set n to 1 and r to 1", "observe": "Only one entry remains", "why": "Size sliders cut the inputs", "set": {"n": 1, "r": 1},
+         "expect": "out.count === 1"},
+        {"title": "Grow", "change": "Set n to 5", "observe": "Five bars appear", "why": "More entries are passed on", "set": {"n": 2}, "then": {"n": 5},
+         "expect": "out2.count === 5 && out2.total > out.total"}],
     "limitation": "Toy sums only.", "quotes": ["a generic test page for resizing"], "simplifications": ["Made-up numbers."]}
 
 CONTROLS = [

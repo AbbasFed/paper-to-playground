@@ -130,7 +130,7 @@ class PageInBrowser(unittest.TestCase):
         self.assertEqual(cells("M").count(), 9)
         self.assertEqual(cells("M").nth(0).input_value(), "-9")
 
-        page.locator("button[data-set]").nth(0).click()          # exploration: n = 1, r = 1
+        page.locator("button[data-ex]").nth(0).click()          # exploration: n = 1, r = 1
         self.assertEqual(cells("p").count(), 1)
         page.locator("#pg-reset").click()                         # defaults: n = 3, r = k = 2
         self.assertEqual((cells("p").count(), cells("M").count()), (3, 4))

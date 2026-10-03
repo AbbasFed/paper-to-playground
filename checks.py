@@ -1,6 +1,5 @@
 """Deterministic checks on a generated explainer: tag parsing, spec normalisation,
 content/grounding checks, and executing the generated JS in an embedded V8 engine."""
-import difflib
 import json
 import math
 import os
@@ -258,6 +257,39 @@ def override_problems(controls, over):
     return out
 
 
+def coerce_override(controls, over):
+    """Fit a {controlId: value} override to the controls the way the page does (PG.coerce), so a small slip in
+    the model's set/then/params is fixed here instead of costing a repair call: unknown ids and unusable values
+    are dropped, vectors and matrices are cut or padded from the default, numbers are clamped into range."""
+    by, fixed = {c["id"]: c for c in controls}, {}
+    num = lambda x: isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float("inf")
+    for k, v in (over.items() if isinstance(over, dict) else []):
+        c = by.get(k)
+        if c is None:
+            continue
+        clamp = lambda x, d: _tidy(min(c["max"], max(c["min"], x))) if num(x) else d
+        if c["type"] in ("slider", "number"):
+            x = _num(v)
+            if x is not None:
+                fixed[k] = clamp(x, None)
+        elif c["type"] == "toggle":
+            s = str(v).lower()
+            if isinstance(v, bool) or s in ("true", "false", "1", "0", "on", "off", "yes", "no"):
+                fixed[k] = v if isinstance(v, bool) else s in ("true", "1", "on", "yes")
+        elif c["type"] == "select":
+            hit = [o["value"] for o in c["options"] if o["value"] == v or str(o["value"]) == str(v) or o["label"] == str(v)]
+            if hit:
+                fixed[k] = hit[0]
+        elif c["type"] == "vector" and isinstance(v, list):
+            d = c["default"]
+            fixed[k] = [clamp(v[i], d[i]) if i < len(v) else d[i] for i in range(c["length"])]
+        elif c["type"] == "matrix" and isinstance(v, list):
+            d = c["default"]
+            fixed[k] = [[clamp(v[i][j], d[i][j]) if i < len(v) and isinstance(v[i], list) and j < len(v[i]) else d[i][j]
+                         for j in range(c["cols"])] for i in range(c["rows"])]
+    return fixed
+
+
 def fit_controls(controls, overrides):
     """Make the control spec consistent with how the model itself uses it: a vector tied to a size
     slider must be as long as the slider's max, and ranges must admit the values in set/params."""
@@ -337,8 +369,43 @@ def _delatex_deep(v):
     if isinstance(v, list):
         return [_delatex_deep(x) for x in v]
     if isinstance(v, dict):
-        return {k: (x if k in ("set", "quotes") else _delatex_deep(x)) for k, x in v.items()}
+        return {k: (x if k in ("set", "then", "expect", "quotes") else _delatex_deep(x)) for k, x in v.items()}
     return v
+
+
+def strip_latex(content):
+    """Last resort for markup delatex() could not convert: drop the remaining commands and math delimiters."""
+    def clean(s):
+        s = re.sub(r"\\(?:begin|end)\s*\{[^{}]*\}", " ", s)
+        s = re.sub(r"\\\\|\\[(\[)\]]|\$", " ", s)
+        s = re.sub(r"\\[A-Za-z]+\*?", "", s)
+        return re.sub(r"[ \t]{2,}", " ", s).strip()
+
+    def walk(v, key=""):
+        if key in ("set", "then", "expect", "quotes"):
+            return v
+        if isinstance(v, str):
+            return clean(v)
+        if isinstance(v, list):
+            return [walk(x) for x in v]
+        if isinstance(v, dict):
+            return {k: walk(x, k) for k, x in v.items()}
+        return v
+    for k in list(content):
+        content[k] = walk(content[k], k)
+
+
+def excerpt_quotes(excerpt, about, k=2):
+    """Up to k whole sentences of the excerpt (verbatim, 6-40 words) that share the most words with the
+    explanation; used when none of the model's quotes can be verified."""
+    words = set(re.findall(r"[a-z]{4,}", about.lower()))
+    cands = []
+    for i, s in enumerate(re.split(r"(?<=[.!?])\s+|\n+", excerpt or "")):
+        s = s.strip()
+        if 6 <= len(s.split()) <= 40 and sum(ch.isalpha() for ch in s) > 0.6 * len(s):
+            cands.append((len(words & set(re.findall(r"[a-z]{4,}", s.lower()))), i, s))
+    best = sorted(cands, key=lambda c: (-c[0], c[1]))[:k]
+    return [s for score, i, s in sorted(best, key=lambda c: c[1]) if score > 0]
 
 
 def normalise_content(c):
@@ -358,7 +425,9 @@ def normalise_content(c):
         if isinstance(e, dict):
             exps.append({"title": str(e.get("title") or "").strip(), "change": str(e.get("change") or "").strip(),
                          "observe": str(e.get("observe") or "").strip(), "why": str(e.get("why") or "").strip(),
-                         "set": e.get("set") if isinstance(e.get("set"), dict) else {}})
+                         "set": e.get("set") if isinstance(e.get("set"), dict) else {},
+                         "then": e.get("then") if isinstance(e.get("then"), dict) else {},
+                         "expect": str(e.get("expect") or "").strip().rstrip(";")})
     eq = g("equation")
     if re.search(r"excerpt|provided|unnumbered|not numbered|^n/?a$|^none$", eq, re.I):
         eq = ""          # "the provided excerpt" is not the name of an equation
@@ -377,25 +446,22 @@ def _norm(s):
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _letters(s):
+    """Only letters and digits: d_k, d<sub>k</sub> and dk compare equal, but no word can be added or dropped."""
+    return re.sub(r"[\W_]+", "", s.lower())
+
+
 def quote_score(quote, excerpt_norm):
-    """1.0 if the quote is in the excerpt, else the best fuzzy ratio against a same-length window."""
+    """1.0 if every piece of the quote (pieces split at '...') occurs in the excerpt letter for letter, ignoring
+    only spacing, punctuation, sub/superscript markup and case; else 0.0. A fuzzy match would let a quote
+    that adds "not" to a source sentence pass as verbatim."""
     q = _norm(re.sub(r"<[^>]+>", "", quote)).strip(" \"'")
-    pieces = [p.strip(" \"'.,;:") for p in re.split("\\.\\.\\.|\u2026|\\[\\.\\.\\.\\]", q) if len(p.strip(" \"'.,;:")) >= 4]
-    if not pieces or not excerpt_norm:
+    pieces = [_letters(p) for p in re.split("\\.\\.\\.|\u2026|\\[\\.\\.\\.\\]", q)]
+    pieces = [p for p in pieces if len(p) >= 4]
+    text = _letters(excerpt_norm or "")
+    if not pieces or not text:
         return 0.0
-    worst = 1.0
-    for p in pieces:
-        if p in excerpt_norm:
-            continue
-        sm = difflib.SequenceMatcher(None, excerpt_norm, p, autojunk=False)
-        m = sm.find_longest_match(0, len(excerpt_norm), 0, len(p))
-        start = max(0, m.a - m.b)
-        best = 0.0
-        for shift in (0, -2, 2, -5, 5):
-            w = excerpt_norm[max(0, start + shift):max(0, start + shift) + len(p)]
-            best = max(best, difflib.SequenceMatcher(None, w, p, autojunk=False).ratio())
-        worst = min(worst, best)
-    return worst
+    return 1.0 if all(p in text for p in pieces) else 0.0
 
 
 UNGROUNDED_LABEL = "the provided excerpt"
@@ -406,7 +472,15 @@ def label_grounded(label, kind, sources):
     raw = "\n".join(s for s in sources if s).lower()
     text = _norm(raw)
     lab = _norm(re.sub(r"<[^>]+>", "", label or ""))
+    parts = [p.strip(" .,;:") for p in re.split(r"[,;]|\band\b", lab) if p.strip(" .,;:")]   # "§3.1, Algorithm 1"
+    return bool(parts) and all(_label_part_grounded(p, kind, raw, text) for p in parts)
+
+
+def _label_part_grounded(lab, kind, raw, text):
     nums = re.findall(r"\d+(?:\.\d+)*", lab)
+    # a named, numbered label written exactly as the source writes it: "Algorithm 1", "Theorem 2", "Table 3"
+    if nums and re.search(r"[a-z]{3,}", lab) and re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(lab), text):
+        return True
     if nums:   # "§3.2.1", "Section 6", "Eq. (1)": every number must occur in a matching form
         for n in nums:
             e = re.escape(n)
@@ -479,7 +553,8 @@ def run_js_checks(parts):
         return out, None
     ctx.eval(read_template("harness.js"))
     spec = {"controls": parts["controls"], "tests": parts["tests"], "readouts": parts["readouts"],
-            "explorations": [{"set": e.get("set") or {}, "observe": e.get("observe", ""), "change": e.get("change", "")}
+            "explorations": [{"set": e.get("set") or {}, "then": e.get("then") or {}, "expect": e.get("expect", ""),
+                              "observe": e.get("observe", ""), "change": e.get("change", "")}
                              for e in parts.get("content", {}).get("explorations", [])]}
     try:
         rep = json.loads(ctx.eval("__runChecks(%s)" % json.dumps(spec), timeout_sec=15))
@@ -496,7 +571,7 @@ def run_js_checks(parts):
     if rep["edgeInf"]:
         out.append(check("edge_infinity", False, "; ".join(rep["edgeInf"]), ["compute", "controls"], "soft"))
     out.append(check("controls_meaningful", not rep["inert"],
-                     ("control(s) %s do not change any output of compute()" % ", ".join(rep["inert"])) if rep["inert"] else "every control changes at least one output",
+                     ("control(s) %s change neither an output of compute() nor the visual" % ", ".join(rep["inert"])) if rep["inert"] else "every control changes at least one output",
                      ["compute", "controls"]))
     failed = [t for t in rep["tests"] if not t["pass"]]
     for t in rep["tests"]:
@@ -516,6 +591,21 @@ def run_js_checks(parts):
                      "; ".join("exploration %d 'observe' quotes %s, which compute() does not produce at that exploration's settings (it gives %s). Correct the numbers in the text"
                                % (w["index"], ", ".join(w["numbers"]), w["computed"] or "no scalar outputs") for w in wrong)
                      if wrong else "numbers quoted in the explorations match the calculation", ["content"]))
+    claims = rep.get("explorationClaims") or []
+    # only a well-formed comparison that comes out false is a wrong claim worth a repair; an expect that reads
+    # outputs that do not exist (wrong key or shape) or does not run leaves the claim unverified
+    false = [c for c in claims if not c["pass"] and not c["error"] and not c.get("malformed")]
+    unverified = ["exploration %d: expect could not be evaluated (%s)" % (c["index"], c["error"]) for c in claims if c["error"]]
+    unverified += ["exploration %d: expect is malformed, %s in %s" % (c["index"], c["malformed"], c["clause"]) for c in claims if c.get("malformed")]
+    unverified += ["exploration %d has no expect" % (i + 1) for i, e in enumerate(spec["explorations"]) if not e["expect"]]
+    if false:
+        out.append(check("exploration_claims", False, "; ".join(
+            "exploration %d: its observe claim is false in the calculation (%s is false). After set: %s. After then: %s. Fix the claim, "
+            "the set/then values or expect" % (c["index"], c.get("clause") or c["expect"], c["a"], c["b"]) for c in false), ["content"]))
+    elif unverified:
+        out.append(check("exploration_claims", False, "; ".join(unverified) + "; those claims stay unverified", ["content"], "soft"))
+    elif claims:
+        out.append(check("exploration_claims", True, "every exploration's observe claim holds in the calculation"))
     return out, rep
 
 
@@ -543,41 +633,56 @@ def evaluate(tags, excerpt):
     content = normalise_content(parsed.get("content", {}))
     parts["content"] = content
     if "content" in parsed:
-        gaps = []
+        # hard gaps leave the page without something the brief requires; soft ones have a template fallback
+        gaps, minor = [], []
         if not content["section"] and not content["equation"]:
             gaps.append("needs a section or an equation reference")
-        for k in ("title", "paper", "formula", "intro", "why", "limitation"):
+        for k in ("formula", "intro", "limitation"):
             if not content[k]:
                 gaps.append("%s is empty" % k)
+        for k in ("title", "paper", "why"):
+            if not content[k]:
+                minor.append("%s is empty" % k)
         if len(content["symbols"]) < 2:
             gaps.append("needs at least 2 symbols")
         if len(content["steps"]) < 2:
-            gaps.append("needs at least 2 steps")
-        if len(content["explorations"]) != 2:
+            minor.append("fewer than 2 steps")
+        if len(content["explorations"]) > 2:
+            minor.append("%d explorations given, the first 2 kept" % len(content["explorations"]))
+            content["explorations"] = content["explorations"][:2]
+        if len(content["explorations"]) < 2:
             gaps.append("needs exactly 2 explorations (got %d)" % len(content["explorations"]))
         for i, e in enumerate(content["explorations"]):
             for k in ("change", "observe", "why"):
                 if len(e[k]) < 8:
                     gaps.append("exploration %d has no %s" % (i + 1, k))
         if not content["simplifications"]:
-            gaps.append("needs at least 1 simplification")
-        checks.append(check("content_complete", not gaps, "; ".join(gaps) if gaps else "idea, symbols, steps, 2 explorations, limitation, citation, simplifications present", ["content"]))
+            minor.append("no simplifications (the template's generic one is shown)")
+        checks.append(check("content_complete", not gaps, "; ".join(gaps) if gaps else "idea, symbols, 2 explorations, limitation and formula present", ["content"]))
+        if minor:
+            checks.append(check("content_fallbacks", False, "; ".join(minor), ["content"], "soft"))
         blob = json.dumps({k: v for k, v in content.items() if k != "quotes"}, ensure_ascii=False)
         m = LATEX_RE.search(blob.replace("\\\\", "\\"))
-        checks.append(check("content_no_latex", not m, ("content contains LaTeX markup %r; use HTML <sub>/<sup> and Unicode" % m.group(0)) if m else "no LaTeX markup", ["content"]))
+        if m:
+            strip_latex(content)
+        checks.append(check("content_no_latex", not m, ("content contained LaTeX markup %r; stripped automatically" % m.group(0)) if m else "no LaTeX markup",
+                            ["content"], "soft"))
         # grounding
         if excerpt:
             en = _norm(excerpt)
             scored = [(q, quote_score(q, en)) for q in content["quotes"]]
             good = [q for q, s in scored if s >= 0.9]
-            badq = ["%r (match %.2f)" % (q[:70], s) for q, s in scored if s < 0.9]
+            badq = ["%r" % q[:70] for q, s in scored if s < 0.9]
             content["quotes"] = good
             if good:
                 checks.append(check("quotes_grounded", True, "%d quote(s) found verbatim in the excerpt" % len(good)))
                 if badq:
                     checks.append(check("quotes_dropped", False, "dropped quote(s) not found in the excerpt: " + "; ".join(badq), ["content"], "soft"))
             else:
-                checks.append(check("quotes_grounded", False, "no quote matches the excerpt verbatim" + (": " + "; ".join(badq) if badq else " (none given)") + ". Copy 1-3 short quotes exactly from the excerpt.", ["content"]))
+                # no repair call for this: quote the excerpt sentences that best match the explanation instead
+                content["quotes"] = excerpt_quotes(excerpt, " ".join([content["formula"], content["intro"], content["why"]] + content["steps"]))
+                checks.append(check("quotes_grounded", False, "no model quote matches the excerpt verbatim" + (": " + "; ".join(badq) if badq else " (none given)")
+                                    + "; %d sentence(s) taken verbatim from the excerpt instead" % len(content["quotes"]), ["content"], "soft"))
         else:
             content["quotes"] = []
             checks.append(check("quotes_grounded", True, "no excerpt available; quotes omitted because they cannot be verified", severity="soft"))
@@ -592,28 +697,34 @@ def evaluate(tags, excerpt):
         if notes:
             checks.append(check("controls_autofixed", False, "; ".join(notes), ["controls"], "soft"))
     raw_tests = [t for t in parsed.get("tests", []) if isinstance(t, dict)]
-    fit = fit_controls(controls, [e["set"] for e in content["explorations"]] + [t.get("params") for t in raw_tests if isinstance(t.get("params"), dict)])
+    fit = fit_controls(controls, [e[k] for e in content["explorations"] for k in ("set", "then")]
+                       + [t.get("params") for t in raw_tests if isinstance(t.get("params"), dict)])
     if fit:
         checks.append(check("controls_fitted", False, "; ".join(fit), ["controls"], "soft"))
     if "content" in parsed and "controls" in parsed and not errors:
         probs = []
         for i, e in enumerate(content["explorations"]):
-            probs += ["exploration %d set: %s" % (i + 1, m) for m in override_problems(controls, e["set"])]
+            for k in ("set", "then"):
+                probs += ["exploration %d %s: %s" % (i + 1, k, m) for m in override_problems(controls, e[k])]
             if not e["set"]:
-                probs.append("exploration %d has no \"set\" values for its button" % (i + 1))
+                probs.append("exploration %d has no \"set\" values, so its button only resets the controls" % (i + 1))
+        # fixed here rather than by a repair call: the page would coerce these values the same way
+        checks.append(check("explorations_apply", not probs, ("auto-fixed: " + "; ".join(probs)) if probs else "both explorations can be applied to the controls",
+                            ["content", "controls"], "soft"))
+    for e in content["explorations"]:
+        e["set"], e["then"] = coerce_override(controls, e["set"]), coerce_override(controls, e["then"])
+    if "content" in parsed and "controls" in parsed and not errors:
         # a button that reloads the defaults, or two buttons that do the same thing, teach nothing
-        defaults = {c["id"]: c["default"] for c in controls}
-        applied = [dict(defaults, **{k: v for k, v in e["set"].items() if k in defaults}) for e in content["explorations"]]
-        same = [str(i + 1) for i, st in enumerate(applied) if content["explorations"][i]["set"] and st == defaults]
+        exps, defaults = content["explorations"], {c["id"]: c["default"] for c in controls}
+        applied = [dict(defaults, **e["set"]) for e in exps]
+        after = [dict(a, **e["then"]) for a, e in zip(applied, exps)]
+        same = [str(i + 1) for i, st in enumerate(applied) if exps[i]["set"] and not exps[i]["then"] and st == defaults]
         if same:   # a warning, not a repair: the page tells the learner these are the starting settings
             checks.append(check("explorations_at_defaults", False, "exploration %s uses the default control values; its button reloads the starting settings"
                                 % " and ".join(same), ["content", "controls"], "soft"))
-        if len(applied) == 2 and applied[0] == applied[1] and applied[0] != defaults:
-            probs.append("explorations 1 and 2 apply identical settings; they must show two different situations")
-        checks.append(check("explorations_apply", not probs, "; ".join(probs) if probs else "both explorations can be applied to the controls", ["content", "controls"]))
-    ids = {c["id"] for c in controls}
-    for e in content["explorations"]:
-        e["set"] = {k: v for k, v in e["set"].items() if k in ids}
+        if len(applied) == 2 and applied[0] == applied[1] and after[0] == after[1] and applied[0] != defaults:
+            checks.append(check("explorations_distinct", False, "explorations 1 and 2 apply identical settings; they must show two different situations",
+                                ["content", "controls"]))
 
     # readouts / tests
     readouts = []
@@ -637,7 +748,14 @@ def evaluate(tags, excerpt):
     if tests and "controls" in parsed and not errors:
         probs = ["test %r params: %s" % (t["name"][:50], m) for t in tests for m in override_problems(controls, t["params"])]
         if probs:
-            checks.append(check("tests_params_shape", False, "; ".join(probs[:6]), ["tests"]))
+            checks.append(check("tests_params_shape", False, "auto-fixed: " + "; ".join(probs[:6]), ["tests"], "soft"))
+        kept = []
+        for t in tests:
+            had = bool(t["params"])
+            t["params"] = coerce_override(controls, t["params"])
+            if t["params"] or not had:      # a known case left with no usable params would turn into an invariant
+                kept.append(t)
+        tests = parts["tests"] = kept
 
     # code
     for tag in ("compute", "render"):
@@ -684,6 +802,10 @@ def finalise(parts, checks, report):
     if failed:
         parts["tests"] = [t for t in parts["tests"] if t["name"] not in failed]
         notes.append("removed %d failing test(s) from the page: %s" % (len(failed), "; ".join(sorted(failed))))
+    # the page says "confirmed by the calculation" only for claims the checker really confirmed
+    held = {c["index"] for c in ((report or {}).get("explorationClaims") or []) if c["pass"]}
+    for i, e in enumerate(parts.get("content", {}).get("explorations", [])):
+        e["verified"] = (i + 1) in held
     if report and not report.get("fatal"):
         miss = set(report["readoutsMissing"])
         parts["readouts"] = [r for r in parts["readouts"] if r["key"] not in miss]
