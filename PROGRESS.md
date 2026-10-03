@@ -32,9 +32,13 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
 - Environment: tests run in a Python 3.11 venv (`.venv/`, ignored) with the pinned `requirements.txt` plus
   dev-only Playwright; the browser test is skipped where Playwright is absent.
 
+- **Step 3 – "How it works".** Confirmed present: `templates/page.html` has `<section id="how">` (nav link
+  `#how`) filled with `content.steps` as an ordered list; the committed attention example shows its 4 steps;
+  `content_complete` fails (and triggers repair) with fewer than 2 steps. Added: a degraded page with no steps now
+  shows a short note instead of an empty list. `tests/test_assemble.py` pins the rendering and all 7 sections.
+
 ## Next
 
-3. Confirm the "How it works" section renders `content.steps`.
 4. Verify on Python 3.11.
 5. Prove every check in `checks.py` can fail.
 6. Real-model runs: every case ×3, with token/latency/repair statistics.

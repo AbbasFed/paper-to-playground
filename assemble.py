@@ -46,7 +46,8 @@ def build_html(parts, case):
 
     symbols = "<table><thead><tr><th>Symbol</th><th>Meaning</th></tr></thead><tbody>%s</tbody></table>" % "".join(
         '<tr><td class="sym"><span>%s</span></td><td>%s</td></tr>' % (inline_html(s["symbol"]), inline_html(s["meaning"])) for s in c["symbols"])
-    steps = '<ol class="steps">%s</ol>' % "".join("<li>%s</li>" % inline_html(s) for s in c["steps"])
+    steps = ('<ol class="steps">%s</ol>' % "".join("<li>%s</li>" % inline_html(s) for s in c["steps"]) if c["steps"] else
+             '<p class="muted">No step-by-step breakdown was generated for this page; the governing equation is under "The idea".</p>')
 
     cards = []
     for i, e in enumerate(c["explorations"]):
