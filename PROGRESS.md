@@ -43,9 +43,17 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
   (`mini-racer` manylinux_2_27, i.e. glibc ≥ 2.27), so no compiler or system package is needed. Not executed on
   Linux itself (would need a Docker image pull). Real-model runs below use the 3.11 venv.
 
+- **Step 5 – every check can fail.** `tests/test_checks_can_fail.py` feeds a deliberately broken variant of a
+  known-good candidate to each of the 36 check names `checks.py` can emit (structure, JSON ×4, content, LaTeX,
+  quotes ×2, controls ×3, explorations, test params, code ×4, V8 engine/load ×3, defaults, edge sweep, infinity,
+  inert control, known-case test, missing tests, invariant, render ×2, resize sweep, readouts, final page ×4).
+  Each one fails on its input; the unmodified candidate fails none; a guard test fails if a new check name
+  appears without a failing case. Report: `python tests/test_checks_can_fail.py --report`.
+  **Cannot fail:** only the no-excerpt variant of `quotes_grounded` (a soft pass by design: without an excerpt,
+  quotes are omitted because nothing can verify them).
+
 ## Next
 
-5. Prove every check in `checks.py` can fail.
 6. Real-model runs: every case ×3, with token/latency/repair statistics.
 7. Reasoning A/B (`none` vs `low`), with a recommendation only.
 8. Secret scan (`git grep -i "sk-or"`).
