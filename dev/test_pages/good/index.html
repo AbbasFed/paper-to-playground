@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test page: good</title>
+<style>
+  :root { --bg: #fff; --fg: #1d2330; --muted: #5b6475; --bar: #3a6fd8; --line: #c9cfdb; --card: #f3f5f9; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #14171f; --fg: #e8ebf2; --muted: #9aa3b5; --bar: #7aa2ff; --line: #3a4150; --card: #1d212c; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  .card { background: var(--card); border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  label { display: block; margin: 8px 0; } input[type=range] { width: 100%; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--fg); font-size: 12px; }
+  table { border-collapse: collapse; } td, th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+  button { font: inherit; padding: 6px 12px; margin: 4px 4px 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Generic test page (good)</h1>
+  <h2>The idea</h2>
+  <p>A toy relationship: bar <i>i</i> has height a × i. Optionally the bars are normalized so they sum to one.</p>
+  <h3>Why it matters</h3>
+  <p>It gives the checker a page where every control visibly changes the picture.</p>
+  <h2>Symbols</h2>
+  <table><tr><th>a</th><td>scale factor</td></tr><tr><th>n</th><td>number of bars</td></tr><tr><th>h<sub>i</sub></th><td>height of bar i</td></tr></table>
+  <h2>How it works</h2>
+  <ol><li>Compute h<sub>i</sub> = a × i for i = 1..n.</li><li>If normalizing, divide each h<sub>i</sub> by their sum.</li><li>Draw one bar per value.</li></ol>
+  <h2>Try it</h2>
+  <div class="card">
+    <label>Scale a: <output id="a-out">4</output><input type="range" id="a" min="1" max="10" step="1" value="4"></label>
+    <label>Bars n: <output id="n-out">5</output><input type="range" id="n" min="2" max="8" step="1" value="5"></label>
+    <label><input type="checkbox" id="norm"> Normalize so the bars sum to 1</label>
+    <button type="button" id="reset">Reset</button>
+  </div>
+  <svg id="chart" viewBox="0 0 420 220" role="img" aria-label="bar chart"></svg>
+  <table class="readouts"><tr><th>Sum of heights</th><td id="sum"></td></tr><tr><th>Largest bar</th><td id="max"></td></tr></table>
+  <h2>Guided explorations</h2>
+  <div class="card"><h3>Exploration 1: more bars</h3><p>Change n to 8. Observe the extra bars. Why: one bar per value.</p>
+    <button type="button" data-set='{"n":8}'>Set this up</button></div>
+  <div class="card"><h3>Exploration 2: normalize</h3><p>Tick normalize. Observe the sum become 1. Why: each bar is divided by the total.</p>
+    <button type="button" data-set='{"norm":true}'>Set this up</button></div>
+  <h2>Limitation</h2>
+  <p>The relationship is linear by construction; real systems rarely are.</p>
+  <h2>Source grounding</h2>
+  <p>Source: placeholder paper, Section 1, Eq. (1).</p>
+  <h3>From the paper</h3><ul><li>Heights grow linearly with the index (placeholder claim).</li></ul>
+  <h3>Our simplifications</h3><ul><li>Small integer inputs. This toy demo does not reproduce the paper's results.</li></ul>
+</main>
+<script>
+  var D = { a: 4, n: 5, norm: false }, S = Object.assign({}, D), $ = function (id) { return document.getElementById(id); };
+  function draw() {
+    var h = [], i, sum = 0;
+    for (i = 1; i <= S.n; i++) { h.push(S.a * i); sum += S.a * i; }
+    if (S.norm) h = h.map(function (v) { return v / sum; });
+    var top = Math.max.apply(null, h), g = 380 / S.n, svg = '<line x1="20" x2="400" y1="190" y2="190" stroke="currentColor"/>';
+    h.forEach(function (v, k) {
+      var bh = 160 * v / top, x = 20 + g * k + g * 0.15;
+      svg += '<rect x="' + x.toFixed(1) + '" y="' + (190 - bh).toFixed(1) + '" width="' + (g * 0.7).toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="var(--bar)"/>' +
+        '<text x="' + (x + g * 0.35).toFixed(1) + '" y="' + (184 - bh).toFixed(1) + '" text-anchor="middle">' + (S.norm ? v.toFixed(2) : v) + '</text>' +
+        '<text x="' + (x + g * 0.35).toFixed(1) + '" y="207" text-anchor="middle">i=' + (k + 1) + '</text>';
+    });
+    $('chart').innerHTML = svg;
+    $('sum').textContent = S.norm ? '1.00' : String(sum);
+    $('max').textContent = S.norm ? top.toFixed(2) : String(top);
+    $('a').value = S.a; $('n').value = S.n; $('norm').checked = S.norm;
+    $('a-out').textContent = S.a; $('n-out').textContent = S.n;
+  }
+  ['a', 'n'].forEach(function (k) { $(k).addEventListener('input', function (e) { S[k] = Number(e.target.value); draw(); }); });
+  $('norm').addEventListener('change', function (e) { S.norm = e.target.checked; draw(); });
+  $('reset').addEventListener('click', function () { S = Object.assign({}, D); draw(); });
+  document.querySelectorAll('[data-set]').forEach(function (b) {
+    b.addEventListener('click', function () { S = Object.assign({}, D, JSON.parse(b.dataset.set)); draw(); });
+  });
+  draw();
+</script>
+</body>
+</html>

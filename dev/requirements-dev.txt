@@ -1,0 +1,3 @@
+# Dev-only QA tooling. NOT part of the submission (keep out of requirements.txt).
+# Setup: pip install -r dev/requirements-dev.txt && python -m playwright install chromium
+playwright==1.63.0

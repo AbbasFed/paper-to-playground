@@ -9,3 +9,4 @@ testenv/
 __pycache__/
 *.pyc
 debug_*.txt
+dev/reports/

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test page: bad</title>
+<!-- DEFECT: remote font (page is not self-contained / offline) -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap">
+<style>
+  body { margin: 0; font: 16px/1.5 Roboto, sans-serif; } main { padding: 16px; }
+  svg text { font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Generic test page (bad)</h1>
+  <h2>The idea</h2><p>Same toy as the good page, with deliberate defects.</p>
+  <h3>Why it matters</h3><p>The checker must catch every defect here.</p>
+  <h2>Symbols</h2><table><tr><th>k</th><td>a parameter</td></tr></table>
+  <h2>How it works</h2><ol><li>Compute r = sqrt(9 - k).</li><li>Draw it.</li></ol>
+  <h2>Try it</h2>
+  <!-- DEFECT: dead slider (no listener, drives nothing) -->
+  <label>Dead slider c <input type="range" id="c" min="0" max="10" value="5"></label>
+  <!-- DEFECT: NaN at max (sqrt of a negative number when k = 10) -->
+  <label>k <input type="range" id="k" min="0" max="10" step="1" value="2"></label>
+  <label><input type="checkbox" id="dbl"> Double it</label>
+  <!-- DEFECT: fixed 760px-wide SVG overflows a 390px phone screen -->
+  <svg id="chart" width="760" height="200" viewBox="0 0 760 200"></svg>
+  <table class="readouts"><tr><th>r</th><td id="r"></td></tr></table>
+  <h2>Guided explorations</h2>
+  <h3>Exploration 1: push k</h3><p>Change k. Observe r. Why: square root.</p>
+  <h3>Exploration 2: double</h3><p>Tick double. Observe r double. Why: multiplication.</p>
+  <h2>Limitation</h2><p>Only defined for k up to 9.</p>
+  <h2>Source grounding</h2><p>Source: placeholder paper, Section 2.</p>
+  <h3>From the paper</h3><ul><li>Placeholder claim.</li></ul>
+  <h3>Our simplifications</h3><ul><li>Toy numbers; this does not reproduce the paper's results.</li></ul>
+</main>
+<script>
+  console.error('demo: deliberate console error on load');   // DEFECT: console error
+  var k = document.getElementById('k'), dbl = document.getElementById('dbl');
+  function draw() {
+    var r = Math.sqrt(9 - Number(k.value)) * (dbl.checked ? 2 : 1), h = r * 40;
+    document.getElementById('chart').innerHTML =
+      '<rect x="40" y="' + (180 - h) + '" width="80" height="' + h + '" fill="#3a6fd8"/>' +
+      '<text x="80" y="195" text-anchor="middle">r</text>' +
+      '<text x="300" y="40" style="font-size:6px">tiny label</text>' +          // readability: < 9px
+      '<text x="300" y="80">overlap A</text><text x="304" y="82">overlap B</text>';  // readability: overlap
+    document.getElementById('r').textContent = r.toFixed(3);
+  }
+  k.addEventListener('input', draw); dbl.addEventListener('change', draw);
+  draw();
+</script>
+</body>
+</html>
