@@ -37,9 +37,14 @@ Updated after every step. Owners: `dev/` and `cases/real/` belong to teammates; 
   `content_complete` fails (and triggers repair) with fewer than 2 steps. Added: a degraded page with no steps now
   shows a short note instead of an empty list. `tests/test_assemble.py` pins the rendering and all 7 sections.
 
+- **Step 4 – Python 3.11.** Fresh CPython 3.11.15 venv with only `requirements.txt` (Windows): install OK,
+  `compileall` OK, 25 tests OK (2 Playwright tests skipped, dev-only), `agent.py` runs (exit 2 without a key, as
+  designed). Linux: `pip download --python-version 3.11 --only-binary=:all:` resolves every pin to a prebuilt wheel
+  (`mini-racer` manylinux_2_27, i.e. glibc ≥ 2.27), so no compiler or system package is needed. Not executed on
+  Linux itself (would need a Docker image pull). Real-model runs below use the 3.11 venv.
+
 ## Next
 
-4. Verify on Python 3.11.
 5. Prove every check in `checks.py` can fail.
 6. Real-model runs: every case ×3, with token/latency/repair statistics.
 7. Reasoning A/B (`none` vs `low`), with a recommendation only.

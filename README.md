@@ -10,7 +10,8 @@ offline, interactive explainer page for engineering undergraduates.
 
 ## Setup and run
 
-Python 3.11, no GPU, no system packages, no browser download, no Node.
+Python 3.11, no GPU, no system packages, no browser download, no Node. Every pinned dependency installs from a
+prebuilt wheel (on Linux, `mini-racer` 0.14.1 needs glibc 2.27 or newer).
 
 ```
 python -m pip install -r requirements.txt
