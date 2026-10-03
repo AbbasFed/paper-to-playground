@@ -3,14 +3,18 @@
 An autonomous agent that turns a research-paper excerpt plus a learning brief into one self-contained,
 offline, interactive explainer page for engineering undergraduates.
 
-**TEAM MEMBERS: Abbas Yassine, Habib Shouman, Adam Al Khatib**
+**Team members:** Abbas Yassine, Habib Shouman, Adam Al Khatib
 
-**MODEL_ID: `deepseek/deepseek-v4.1-flash`** (DeepSeek V4.1 Flash on OpenRouter; slug confirmed through
+**MODEL_ID:** `deepseek/deepseek-v4.1-flash` (DeepSeek V4.1 Flash on OpenRouter; slug confirmed through
 `GET https://openrouter.ai/api/v1/models`). The code is model-agnostic: it uses whatever `--model` is given.
+
+**Contents:** [Setup and run](#setup-and-run) · [Architecture](#architecture) · [What every page contains](#what-every-page-contains) ·
+[Checks and repairs](#checks-and-repairs) · [Limits and token efficiency](#limits-and-token-efficiency) ·
+[Trace format](#trace-format) · [Example](#example) · [Development](#development) · [Reuse and credits](#reuse-and-credits)
 
 ## Setup and run
 
-Python 3.11, no GPU, no system packages, no browser download, no Node. Every pinned dependency installs from a
+Python 3.11. No GPU, no system packages, no browser download, no Node. Every pinned dependency installs from a
 prebuilt wheel (on Linux, `mini-racer` 0.14.1 needs glibc 2.27 or newer).
 
 ```
@@ -21,25 +25,31 @@ python agent.py --input case.json --output out --model deepseek/deepseek-v4.1-fl
 
 Outputs:
 
-- `out/index.html` – one file with embedded CSS, JS and SVG. Open it directly or serve it with
+- `out/index.html`: one file with embedded CSS, JS and SVG. Open it directly or serve it with
   `python -m http.server`; it loads nothing from the network.
-- `out/trace.jsonl` – the execution trace.
+- `out/trace.jsonl`: the execution trace (always written).
 
-Exit code `0` when a working page was written, non-zero otherwise (the trace is always written).
+Exit code `0` when a working page was written, non-zero otherwise.
 
-Optional flags: `--reasoning {off,none,minimal,low,medium,high,xhigh,max,auto}` (default `off`; mapped to what
-the model supports, see "Token efficiency"), `--provider-prefs '<JSON>'` (OpenRouter provider preferences;
-**off by default**, also settable as `P2P_PROVIDER_PREFS`), `--temperature` (default 0.3), `--debug` (also saves
-the raw model replies next to the page).
+Optional flags:
+
+| Flag | Default | Meaning |
+| --- | --- | --- |
+| `--reasoning {off,none,minimal,low,medium,high,xhigh,max,auto}` | `off` | reasoning effort, mapped to what the model supports (see [Token efficiency](#limits-and-token-efficiency)) |
+| `--provider-prefs '<JSON>'` | off | OpenRouter provider preferences; also settable as `P2P_PROVIDER_PREFS` |
+| `--temperature` | `0.3` | sampling temperature |
+| `--debug` | off | also save the raw model replies next to the page |
 
 ### Input
 
 `case.json` is a UTF-8 JSON object. No field name is hard-coded: every field is passed to the model labelled by
 its key. The excerpt is found by name (`excerpt`, `text`, `section`, `content`, ...) or, failing that, as the
-longest text field, and sent whole unless it is longer than about 40,000 characters (a longer text is cut to the
-part that best matches the brief). Only if a case has no excerpt at all does the agent try `source_url` once, with
-a 3 second timeout. If the fetch fails (as it will when network access is limited to OpenRouter) the agent carries
-on from the brief alone, and quotes are omitted because they cannot be verified.
+longest text field. It is sent whole unless it is longer than about 40,000 characters, in which case it is cut to
+the part that best matches the brief.
+
+Only if a case has no excerpt at all does the agent try `source_url` once, with a 3 second timeout. If the fetch
+fails (as it will when network access is limited to OpenRouter) the agent carries on from the brief alone, and
+quotes are omitted because they cannot be verified.
 
 ## Architecture
 
@@ -62,7 +72,7 @@ case.json
 [Assemble]  best candidate -> fixed HTML template -> index.html, final page checks, trace, exit code
 ```
 
-| File | Role |
+| Path | Role |
 | --- | --- |
 | `agent.py` | CLI, pipeline, repair loop, exit codes |
 | `llm.py` | OpenRouter client, usage capture, retries, hard budget guard |
@@ -70,71 +80,81 @@ case.json
 | `assemble.py` | template injection and escaping |
 | `trace.py` | JSONL trace writer |
 | `prompts/system.txt`, `prompts/repair.txt` | the two prompts |
-| `templates/page.html`, `style.css` | page layout and runtime (controls, live update loop) |
+| `templates/page.html`, `templates/style.css` | page layout and runtime (controls, live update loop) |
 | `templates/helpers.js` | `H`: SVG charts/diagrams and math helpers used by generated code |
 | `templates/harness.js` | the checker that runs inside V8 |
+| `templates/aub_logo.png` | logo embedded in every page (see credits) |
 | `cases/` | six practice inputs |
-| `tests/` | offline unit tests, no API calls: `python -m unittest discover -s tests` |
-| `tools/bench.py` | repeated real runs over the practice cases with a token/latency/check summary (spends tokens) |
-| `PROGRESS.md` | done / next / known issues |
 | `examples/attention/` | one committed input/output pair |
+| `tests/` | offline unit tests (no API calls) |
+| `tools/bench.py` | repeated real runs with a token/latency/check summary (spends tokens) |
+| `dev/` | dev-only browser QA tool (Playwright), not needed to run the agent |
 
-### What every page contains
+## What every page contains
 
 Title and citation, the idea and why it matters, the paper's governing equation, a symbols table, the mechanism
-as ordered steps, an interactive playground (controls, an SVG visual, a table of intermediate and final values,
-and live checks), two guided explorations (Change / Observe / Why, each with a button that applies the settings),
-one limitation or common misunderstanding, and a source-grounding section. Blue blocks marked **From the paper**
-hold the equation and verbatim quotes; dashed amber blocks marked **Our example / simplification** hold what the
-demo invents, plus a fixed disclaimer that the demo does not reproduce the paper's experimental results.
+as ordered steps ("How it works"), an interactive playground (controls, an SVG visual, a table of intermediate and
+final values, and live checks), two guided explorations (Change / Observe / Why, each with a button that applies
+the settings), one limitation or common misunderstanding, and a source-grounding section.
 
-Below the model's own visual the template adds automatic graphs: one chosen result plotted against each slider across
-its whole range, with the current setting marked. These need no model tokens; every point is a `compute()` call.
+Blue blocks marked **From the paper** hold the equation and verbatim quotes; dashed amber blocks marked
+**Our example / simplification** hold what the demo invents, plus a fixed disclaimer that the demo does not
+reproduce the paper's experimental results.
 
 Every number on the page comes from the generated `compute()` running in the browser on the current control
-values. `render()` only draws what `compute()` returned.
+values; `render()` only draws what `compute()` returned. Below the model's own visual the template adds
+automatic graphs: one chosen result plotted against each slider across its whole range, with the current setting
+marked. These need no model tokens; every point is a `compute()` call.
 
 A vector or matrix can be tied to integer size sliders (`lengthFrom`, `rowsFrom`, `colsFrom`, minimum 1). The page
 keeps the full declared array and only passes the selected part to `compute()`, so shrinking and growing again
 never loses typed values; any change that alters a size (slider, number box, exploration button, reset) rebuilds
-the affected inputs.
+the affected inputs. For iterative mechanisms the prompt asks for an integer iterations slider (max 100), with
+`compute()` running exactly that many steps and returning the history.
 
 ## Checks and repairs
 
 Each check is logged to the trace with pass / fail / warn and a message.
 
-1. **Structure** – all tags present; JSON tags parse (tolerant of code fences, trailing commas and wrong closing tags).
-2. **Content** – idea, why, formula, at least 2 symbols, steps, exactly 2 explorations each with change / observe / why,
-   a limitation, section and equation, at least 1 simplification; leaked LaTeX is converted to Unicode/HTML, and any
-   that remains fails the check.
-3. **Grounding** – every quote must occur in the excerpt (whitespace- and case-normalised, fuzzy match >= 0.9).
+1. **Structure**: all tags present; JSON tags parse (tolerant of code fences, trailing commas and wrong closing tags).
+2. **Content**: idea, why, formula, at least 2 symbols, steps, exactly 2 explorations each with change / observe /
+   why, a limitation, section and equation, at least 1 simplification. Leaked LaTeX is converted to Unicode/HTML;
+   any that remains fails the check.
+3. **Grounding**: every quote must occur in the excerpt (whitespace- and case-normalised, fuzzy match >= 0.9).
    Unmatched quotes are dropped; if none survive the check fails and is repaired. The cited section and equation
    labels must also appear in the excerpt or another case field (e.g. `3.2.1`, `Section 6`, `(1)`, `Eq. 1`);
    otherwise they are replaced by "the provided excerpt" and the replacement is logged.
-4. **Controls** – at least 2 valid controls, unique ids, defaults inside ranges; exploration and test settings must fit the controls.
-5. **Purity** – generated code may not use `fetch`, `import()`, XHR, the DOM, `Math.random`, `Date` or URLs.
-6. **Execution in V8** (`mini-racer`) –
-   `compute(defaults)` runs and returns finite values;
-   an edge sweep runs `compute` and `render` with every control at min and max, every option, and vectors and
-   matrices filled with their extremes (so all-zero inputs occur): no exceptions, no NaN;
-   every control must change at least one output;
-   vectors and matrices tied to integer size sliders (`lengthFrom`, `rowsFrom`, `colsFrom`) are run at every size
-   the slider allows, 1 included, and `compute` must receive exactly that shape (`resize_sweep`);
-   the model's own `<tests>` (known cases with hand-derivable answers) must be true, and its invariants must hold
-   at every swept setting;
-   `render` must return an SVG with no `NaN` / `undefined` in it;
-   readout keys must resolve;
-   every decimal number quoted in an exploration's "observe" text must be a value `compute` really produces at the
-   settings that exploration describes (the model's prose is otherwise unverified).
-   Numbers in scientific notation are understood. An exploration that merely reloads the default settings is logged
-   as a warning; the page then tells the learner the settings are already loaded.
-7. **Final page** – no remote `src`/`href`/`url()`, no `fetch`/`import`/XHR/`<link>`, every inline script parses,
+4. **Controls**: at least 2 valid controls, unique ids, defaults inside ranges; exploration and test settings must
+   fit the controls.
+5. **Purity**: generated code may not use `fetch`, `import()`, XHR, the DOM, `Math.random`, `Date` or URLs.
+6. **Execution in V8** (`mini-racer`):
+   - `compute(defaults)` runs and returns finite values;
+   - an edge sweep runs `compute` and `render` with every control at min and max, every option, and vectors and
+     matrices filled with their extremes (so all-zero inputs occur): no exceptions, no NaN;
+   - every control must change at least one output;
+   - size-linked vectors and matrices are run at every size the slider allows, 1 included, and `compute` must
+     receive exactly that shape (`resize_sweep`);
+   - the model's own `<tests>` (known cases with hand-derivable answers) must be true, and its invariants must
+     hold at every swept setting;
+   - `render` must return an SVG with no `NaN` / `undefined` in it, and readout keys must resolve;
+   - every decimal number quoted in an exploration's "observe" text must be a value `compute` really produces at
+     the settings that exploration describes (scientific notation is understood). An exploration that merely
+     reloads the default settings is logged as a warning, and the page tells the learner the settings are
+     already loaded.
+7. **Final page**: no remote `src`/`href`/`url()`, no `fetch`/`import`/XHR/`<link>`, every inline script parses,
    size under 1 MB, API key absent.
 
 **Repair.** If a hard check fails and budget remains, the agent sends the brief, the exact failure messages and
 only the tags involved, and asks for only the corrected tags. The reply is merged and everything is re-checked;
-a repair that makes things worse is rejected. If a known-case test still fails after the repairs it is removed from the page (its hand-computed expectation is usually what is wrong). An invariant that still fails at some setting is never removed: it stays as a live check and turns red when the learner reaches that setting. `compute` may also return a `warning` for settings the method does not allow; the page shows it in a banner and marks the invariants as not applicable there. At most two rounds; the second is skipped when the only remaining
-failures are known-case tests, which are removed from the page instead.
+a repair that makes things worse is rejected. At most two rounds; the second is skipped when the only remaining
+failures are known-case tests.
+
+- A known-case test that still fails after the repairs is removed from the page (its hand-computed expectation is
+  usually what is wrong).
+- An invariant that still fails at some setting is never removed: it stays as a live check and turns red when
+  the learner reaches that setting.
+- `compute` may return a `warning` for settings the method does not allow; the page shows it in a banner and
+  marks the invariants as not applicable there.
 
 **Fallback.** The best candidate so far is always kept. When budget or time runs out the agent still assembles
 it; the page runtime shows an inline error rather than a blank page if a part is broken. Exit code is 0 only if
@@ -143,7 +163,7 @@ it; the page runtime shows an inline error rather than a blank page if a part is
 The tests that pass are also shown on the page as **Live checks**: invariants are re-evaluated on the current
 settings at every change, and known cases have a button that loads them into the playground.
 
-## Limits enforcement
+## Limits and token efficiency
 
 Enforced in `llm.py` by a single `Budget` object consulted before every HTTP attempt:
 
@@ -155,27 +175,24 @@ Enforced in `llm.py` by a single `Budget` object consulted before every HTTP att
 
 Retries (429, 5xx, timeouts, empty replies) use a short backoff and count toward the request cap. A call that
 returns no usage (a timeout or dropped connection) is assumed to have spent its whole `max_tokens`, so the
-completion-token cap holds even in the worst case. Typical use
-is 1 to 2 requests and roughly 5k to 9k total tokens per case.
+completion-token cap holds even in the worst case. Typical use is 1 to 4 requests and roughly 5k to 16k total
+tokens per case.
 
-**Token efficiency.** Reasoning is disabled by default (`"reasoning": {"enabled": false}`). Measured on the
-practice cases with `deepseek/deepseek-v4.1-flash`: with `effort: low` a case cost 12k to 27k completion tokens
-and 3 to 8 minutes, and two of three runs ran out of budget; with reasoning off the same cases cost about 3k
-completion tokens and finish in well under a minute with all checks passing. If a model rejects the
-reasoning setting, the call is retried without it.
+**Reasoning.** Disabled by default. Measured on the practice cases with `deepseek/deepseek-v4.1-flash`: with
+`effort: low` a case cost 12k to 27k completion tokens and 3 to 8 minutes, and two of three runs ran out of
+budget; with reasoning off the same cases cost about 3k completion tokens and finish in well under a minute with
+all checks passing.
 
 Before the first call the agent reads the model's `reasoning` object from `GET /api/v1/models`
-(`supported_efforts`, `mandatory`) and maps `--reasoning` onto it: `off` sends `{"enabled": false}` unless reasoning
-is mandatory (then the lowest supported effort), and an effort the model does not offer becomes the next lower one.
-`"exclude": true` is always sent, so reasoning text is never returned; only the `reasoning_tokens` count is logged.
+(`supported_efforts`, `mandatory`) and maps `--reasoning` onto it: `off` sends `{"enabled": false}` unless
+reasoning is mandatory (then the lowest supported effort), and an effort the model does not offer becomes the next
+lower one. `"exclude": true` is always sent, so reasoning text is never returned; only the `reasoning_tokens`
+count is logged. If a model rejects the reasoning setting, the call is retried without it.
 
 **Empty-content guard.** A reply that is empty (no content, or completion tokens minus reasoning tokens close to
 zero) or cut off (`finish_reason: "length"`) is logged as a failed call and retried once with the next lower
 reasoning effort; the retry counts toward the 10-request cap. If the retry also fails, a cut-off reply is kept and
 its missing parts are left to the repair step.
-
-**Iterative mechanisms.** The system prompt asks for an integer iterations slider (max 100) whenever the mechanism
-is an update applied repeatedly, with `compute()` running exactly that many steps and returning the history.
 
 ## Trace format
 
@@ -193,10 +210,10 @@ is an update applied repeatedly, with `compute()` running exactly that many step
 
 Every event has `t` (seconds since start), `stage` (`start`, `prepare`, `generate`, `plan`, `check`, `repair`,
 `assemble`, `done`, `error`), `action` and `result`. LLM events carry token counts, latency and the OpenRouter
-generation id; the `plan` event records the model's stated plan for the explanation (its `<plan>` tag); check events
-carry pass/fail and a message; repair events record which tags were revised and why.
-The trace never contains the API key (lines are scrubbed as a second line of defence), request headers, or any
-model reasoning text.
+generation id; the `plan` event records the model's stated plan for the explanation (its `<plan>` tag); check
+events carry pass/fail and a message; repair events record which tags were revised and why. The trace never
+contains the API key (lines are scrubbed as a second line of defence), request headers, or any model reasoning
+text.
 
 ## Example
 
@@ -206,6 +223,20 @@ model reasoning text.
 ```
 python agent.py --input examples/attention/case.json --output examples/attention/out --model deepseek/deepseek-v4.1-flash
 ```
+
+## Development
+
+None of this is needed to run the agent.
+
+- **Unit tests** (offline, no API calls): `python -m unittest discover -s tests`. They cover the LLM client
+  (reasoning mapping, empty-content guard; HTTP is faked), label grounding, page assembly, resizing, and prove
+  that every check in `checks.py` can fail (`python tests/test_checks_can_fail.py --report` prints the table).
+  Two browser tests run only if Playwright is installed.
+- **Benchmark** (spends tokens): `python tools/bench.py --runs 3 --label baseline` runs every practice case and
+  writes token, latency, repair and check statistics to `runs/<label>/summary.md`. The key comes from the
+  environment or a git-ignored `.env`.
+- **Browser QA**: `dev/browser_check.py` opens generated pages in Chromium and operates them like an assessor
+  (setup: `pip install -r dev/requirements-dev.txt && python -m playwright install chromium`).
 
 ## Reuse and credits
 
@@ -218,6 +249,7 @@ python agent.py --input examples/attention/case.json --output examples/attention
   written for this project.
 - `templates/aub_logo.png` is the American University of Beirut logo from aub.edu.lb, embedded in each page as a
   data URI. It is the property of AUB and is used to identify the course this project was built for.
+- [Playwright](https://playwright.dev/) (Apache-2.0) is used only by the dev-only tests and QA tool.
 - Everything else (pipeline, prompts, template, helper library, checker) was written for this project. The
   templates and helpers are generic; the repository contains no paper-specific answers or pages apart from the
   example output above, which the agent produced. The practice excerpts in `cases/` are short quotations from
